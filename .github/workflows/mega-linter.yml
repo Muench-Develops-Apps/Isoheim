@@ -25,8 +25,8 @@ jobs:
 
       - run: npm ci
 
-      - name: Type check shared
-        run: npx tsc --noEmit -p packages/shared/tsconfig.json
+      - name: Build shared (declarations needed by server/client)
+        run: npx tsc -p packages/shared/tsconfig.json
 
       - name: Type check server
         run: npx tsc --noEmit -p packages/server/tsconfig.json
