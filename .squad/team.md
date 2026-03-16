@@ -1,6 +1,6 @@
 # Squad Team
 
-> 2wowD — A 2D isometric MMO inspired by World of Warcraft
+> 2wowD — A 2D isometric MMO built with TypeScript, Phaser.js & Node.js
 
 ## Coordinator
 

@@ -1,6 +1,6 @@
 # 🎮 2wowD — 2D Isometric MMO
 
-A 2D isometric multiplayer online RPG inspired by World of Warcraft, built with TypeScript, Phaser.js, and Node.js.
+A 2D isometric multiplayer online RPG built with TypeScript, Phaser.js, and Node.js.
 
 ## Screenshots
 
