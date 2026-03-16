@@ -70,6 +70,33 @@ export class World {
     return result;
   }
 
+  /** Nudge overlapping mobs apart (soft separation). */
+  separateMobs(): void {
+    const MOB_SEPARATION = 0.4;
+    const mobArray = [...this.mobs.values()].filter(m => !m.isDead);
+    for (let i = 0; i < mobArray.length; i++) {
+      for (let j = i + 1; j < mobArray.length; j++) {
+        const a = mobArray[i];
+        const b = mobArray[j];
+        const dx = b.position.x - a.position.x;
+        const dy = b.position.y - a.position.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < MOB_SEPARATION && dist > 0.001) {
+          const pushX = (dx / dist) * (MOB_SEPARATION - dist) * 0.5;
+          const pushY = (dy / dist) * (MOB_SEPARATION - dist) * 0.5;
+          if (!this.isCollision(a.position.x - pushX, a.position.y - pushY)) {
+            a.position.x -= pushX;
+            a.position.y -= pushY;
+          }
+          if (!this.isCollision(b.position.x + pushX, b.position.y + pushY)) {
+            b.position.x += pushX;
+            b.position.y += pushY;
+          }
+        }
+      }
+    }
+  }
+
   isCollision(x: number, y: number): boolean {
     const tileX = Math.floor(x);
     const tileY = Math.floor(y);
