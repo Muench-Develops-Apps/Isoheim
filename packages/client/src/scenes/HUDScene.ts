@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { type AbilityDef, type CooldownState, type ChatMessage, type MapData, type BuffState } from '@isoheim/shared';
+import { type AbilityDef, type CooldownState, type ChatMessage, type MapData, type BuffState, type InventoryItem, type WorldLoot } from '@isoheim/shared';
 import { HealthBar } from '../ui/HealthBar';
 import { ActionBar } from '../ui/ActionBar';
 import { ChatPanel } from '../ui/ChatPanel';
@@ -8,6 +8,8 @@ import { CastBar } from '../ui/CastBar';
 import { BuffBar } from '../ui/BuffBar';
 import { Minimap, type MinimapEntityData } from '../ui/Minimap';
 import { EscMenu } from '../ui/EscMenu';
+import { InventoryPanel } from '../ui/InventoryPanel';
+import { LootWindow } from '../ui/LootWindow';
 import { NetworkManager } from '../network/NetworkManager';
 import { SoundManager } from '../systems/SoundManager';
 
@@ -22,6 +24,8 @@ export class HUDScene extends Phaser.Scene {
   private buffBar!: BuffBar;
   private minimap!: Minimap;
   private escMenu!: EscMenu;
+  private inventoryPanel!: InventoryPanel;
+  private lootWindow!: LootWindow;
   private latencyText!: Phaser.GameObjects.Text;
   private muteIndicator!: Phaser.GameObjects.Text;
   private gameScene!: Phaser.Scene;
@@ -80,6 +84,12 @@ export class HUDScene extends Phaser.Scene {
 
     // ESC menu
     this.escMenu = new EscMenu(this, this.gameScene);
+
+    // Inventory panel
+    this.inventoryPanel = new InventoryPanel(this);
+
+    // Loot window
+    this.lootWindow = new LootWindow(this);
 
     // Latency display
     this.latencyText = this.add.text(1260, 4, '', {
@@ -175,6 +185,33 @@ export class HUDScene extends Phaser.Scene {
     // Listen for mute toggle from GameScene (M key)
     this.gameScene.events.on('muteToggled', () => {
       this.updateMuteIndicator();
+    });
+
+    // Inventory toggle
+    this.gameScene.events.on('toggleInventory', () => {
+      this.inventoryPanel.toggle();
+    });
+
+    // Inventory data updates
+    this.gameScene.events.on('inventoryUpdated', (inventory: InventoryItem[]) => {
+      this.inventoryPanel.updateInventory(inventory);
+    });
+
+    // Loot window
+    this.gameScene.events.on('showLoot', (loot: WorldLoot) => {
+      this.lootWindow.show(loot);
+    });
+
+    this.gameScene.events.on('lootItemRemoved', (lootId: string, itemIndex: number) => {
+      if (this.lootWindow.getCurrentLootId() === lootId) {
+        this.lootWindow.removeItem(itemIndex);
+      }
+    });
+
+    this.gameScene.events.on('lootDespawned', (lootId: string) => {
+      if (this.lootWindow.getCurrentLootId() === lootId) {
+        this.lootWindow.close();
+      }
     });
 
     // Listen for chat focus changes in game scene's input system

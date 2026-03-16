@@ -22,6 +22,8 @@ export class InputSystem {
     ENTER: Phaser.Input.Keyboard.Key;
     ESC: Phaser.Input.Keyboard.Key;
     M: Phaser.Input.Keyboard.Key;
+    B: Phaser.Input.Keyboard.Key;
+    I: Phaser.Input.Keyboard.Key;
   };
   private moveSeq = 0;
   private lastDir: Vec2 = { x: 0, y: 0 };
@@ -63,6 +65,8 @@ export class InputSystem {
       ENTER: kb.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER, false),
       ESC: kb.addKey(Phaser.Input.Keyboard.KeyCodes.ESC, false),
       M: kb.addKey(Phaser.Input.Keyboard.KeyCodes.M, false),
+      B: kb.addKey(Phaser.Input.Keyboard.KeyCodes.B, false),
+      I: kb.addKey(Phaser.Input.Keyboard.KeyCodes.I, false),
     };
   }
 
@@ -126,6 +130,11 @@ export class InputSystem {
     // Enter to toggle chat
     if (Phaser.Input.Keyboard.JustDown(this.keys.ENTER)) {
       this.scene.events.emit('toggleChat');
+    }
+
+    // B or I to toggle inventory
+    if (Phaser.Input.Keyboard.JustDown(this.keys.B) || Phaser.Input.Keyboard.JustDown(this.keys.I)) {
+      this.scene.events.emit('toggleInventory');
     }
 
     // M to toggle mute
