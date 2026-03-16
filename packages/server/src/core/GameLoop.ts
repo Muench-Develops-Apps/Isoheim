@@ -107,10 +107,13 @@ export class GameLoop {
     // 4. Mob AI
     this.mobAISystem.update(this.world, deltaMs, now);
 
-    // 5. Spawn system (mob respawns)
+    // 5. Mob separation (prevent permanent overlap)
+    this.world.separateMobs();
+
+    // 6. Spawn system (mob respawns)
     this.spawnSystem.update(this.world, deltaMs);
 
-    // 6. Broadcast world state
+    // 7. Broadcast world state
     this.broadcastWorldState();
   }
 
