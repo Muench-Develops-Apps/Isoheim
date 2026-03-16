@@ -9,3 +9,9 @@
 - GameScene uses client-side prediction with pendingMoves reconciliation
 - All sprites procedurally generated — colored rectangles with class-specific colors
 - Isometric rendering with depth sorting via getDepthForPosition()
+- VFXManager singleton in systems/VFXManager.ts — procedural Graphics+Tweens effects for all 12 abilities
+- VFX depth 9000 (above entities, below FloatingText at 10000)
+- Ability IDs: warrior-charge/whirlwind/shield-block, mage-fireball/frost-bolt/blizzard, rogue-backstab/eviscerate/vanish, priest-heal/smite/shield
+- Projectile VFX (fireball, frost bolt) use trail particles + impact burst; color-parameterized shared method
+- All VFX auto-destroy via tween onComplete callbacks — no manual cleanup needed
+- BootScene generates a 4×4 'particle' texture for potential future particle emitter use

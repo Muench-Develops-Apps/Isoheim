@@ -158,5 +158,13 @@ export class BootScene extends Phaser.Scene {
       g.generateTexture('selection-ring', 40, 20);
       g.destroy();
     }
+    // VFX particle (4×4 white circle)
+    {
+      const g = this.make.graphics({ x: 0, y: 0 });
+      g.fillStyle(0xffffff, 1);
+      g.fillCircle(2, 2, 2);
+      g.generateTexture('particle', 4, 4);
+      g.destroy();
+    }
   }
 }

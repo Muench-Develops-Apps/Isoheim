@@ -39,6 +39,7 @@ import { MobEntity } from '../entities/MobEntity';
 import { FloatingText } from '../entities/FloatingText';
 import { getDepthForPosition } from '../systems/IsometricHelper';
 import { SoundManager } from '../systems/SoundManager';
+import { VFXManager } from '../systems/VFXManager';
 
 export class GameScene extends Phaser.Scene {
   private net!: NetworkManager;
@@ -83,6 +84,7 @@ export class GameScene extends Phaser.Scene {
     this.net = NetworkManager.instance;
     this.inputSystem = new InputSystem(this);
     this.cameraSystem = new CameraSystem(this);
+    VFXManager.instance.init(this);
 
     this.registerNetworkHandlers();
     this.registerInputHandlers();
@@ -312,6 +314,24 @@ export class GameScene extends Phaser.Scene {
 
     this.net.on(ServerMessageType.AbilityCast, (msg: AbilityCastMessage) => {
       SoundManager.instance.playAbility();
+
+      // Resolve caster / target screen positions for VFX
+      const casterEntity = this.players.get(msg.casterId) || this.mobs.get(msg.casterId);
+      if (casterEntity) {
+        const cx = casterEntity.sprite.x;
+        const cy = casterEntity.sprite.y;
+        let tx: number | undefined;
+        let ty: number | undefined;
+        if (msg.targetId) {
+          const targetEntity = this.players.get(msg.targetId) || this.mobs.get(msg.targetId);
+          if (targetEntity) {
+            tx = targetEntity.sprite.x;
+            ty = targetEntity.sprite.y;
+          }
+        }
+        VFXManager.instance.playAbilityEffect(msg.abilityId, cx, cy, tx, ty);
+      }
+
       if (msg.casterId === this.playerId) {
         SoundManager.instance.playCast();
         const abilities = CLASS_ABILITIES[this.classType];
