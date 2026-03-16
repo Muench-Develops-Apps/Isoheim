@@ -35,7 +35,7 @@ SPELL_CSPELL_CONFIG_FILE: cspell.json
 REPOSITORY_GITLEAKS_CONFIG_FILE: .gitleaks.toml
 
 # Filter paths for linters
-FILTER_REGEX_EXCLUDE: '(node_modules|dist|\.mega-linter-reports|package-lock\.json)'
+FILTER_REGEX_EXCLUDE: '(node_modules|dist|\.mega-linter-reports|package-lock\.json|\.squad)'
 
 SHOW_ELAPSED_TIME: true
 FILEIO_REPORTER: false

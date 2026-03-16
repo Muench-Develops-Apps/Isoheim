@@ -8,6 +8,7 @@
     "package-lock.json",
     ".mega-linter-reports",
     ".github/workflows",
+    ".squad",
     "*.png",
     "*.jpg"
   ],
