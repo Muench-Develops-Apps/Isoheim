@@ -40,7 +40,7 @@ export class MobAISystem {
           this.processAttack(mob, world, now);
           break;
         case MobAIState.Leash:
-          this.processLeash(mob, deltaSeconds);
+          this.processLeash(mob, world, deltaSeconds);
           break;
       }
     }
@@ -59,13 +59,18 @@ export class MobAISystem {
     mob.patrolCooldown -= deltaMs;
     if (mob.patrolCooldown <= 0) {
       mob.patrolCooldown = 3000 + Math.random() * 5000;
-      const angle = Math.random() * Math.PI * 2;
-      const dist = Math.random() * MOB_PATROL_RANGE;
-      mob.patrolTarget = {
-        x: mob.spawnOrigin.x + Math.cos(angle) * dist,
-        y: mob.spawnOrigin.y + Math.sin(angle) * dist,
-      };
-      mob.aiState = MobAIState.Patrol;
+      // Try up to 5 times to find a walkable patrol target
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * MOB_PATROL_RANGE;
+        const tx = mob.spawnOrigin.x + Math.cos(angle) * dist;
+        const ty = mob.spawnOrigin.y + Math.sin(angle) * dist;
+        if (!world.isCollision(tx, ty)) {
+          mob.patrolTarget = { x: tx, y: ty };
+          mob.aiState = MobAIState.Patrol;
+          break;
+        }
+      }
     }
   }
 
@@ -91,7 +96,7 @@ export class MobAISystem {
       return;
     }
 
-    mob.moveToward(mob.patrolTarget, deltaSeconds * 0.5); // Patrol at half speed
+    mob.moveToward(mob.patrolTarget, deltaSeconds * 0.5, world); // Patrol at half speed
   }
 
   private processChase(mob: Mob, world: World, deltaSeconds: number): void {
@@ -120,7 +125,7 @@ export class MobAISystem {
       return;
     }
 
-    mob.moveToward(target.position, deltaSeconds);
+    mob.moveToward(target.position, deltaSeconds, world);
   }
 
   private processAttack(mob: Mob, world: World, now: number): void {
@@ -178,7 +183,7 @@ export class MobAISystem {
     }
   }
 
-  private processLeash(mob: Mob, deltaSeconds: number): void {
+  private processLeash(mob: Mob, world: World, deltaSeconds: number): void {
     const dist = distance(mob.position, mob.spawnOrigin);
     if (dist < 0.3) {
       mob.aiState = MobAIState.Idle;
@@ -186,7 +191,7 @@ export class MobAISystem {
       return;
     }
 
-    mob.moveToward(mob.spawnOrigin, deltaSeconds * 1.5); // Faster return
+    mob.moveToward(mob.spawnOrigin, deltaSeconds * 1.5, world); // Faster return
   }
 
   private findAggroTarget(mob: Mob, world: World): Player | null {

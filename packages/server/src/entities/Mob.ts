@@ -11,12 +11,15 @@ import {
   AGGRO_RANGE,
   LEASH_RANGE,
   MOB_PATROL_RANGE,
+  MAP_WIDTH,
+  MAP_HEIGHT,
   distance,
   normalize,
   vectorToDirection,
   generateId,
 } from '@isoheim/shared';
 import type { BuffSystem } from '../systems/BuffSystem.js';
+import type { World } from '../core/World.js';
 
 export enum MobAIState {
   Idle = 'idle',
@@ -136,7 +139,7 @@ export class Mob {
     this.threatTable.clear();
   }
 
-  moveToward(target: Vec2, deltaSeconds: number): void {
+  moveToward(target: Vec2, deltaSeconds: number, world?: World): void {
     const dx = target.x - this.position.x;
     const dy = target.y - this.position.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
@@ -146,8 +149,31 @@ export class Mob {
     const moveAmount = this.def.speed * deltaSeconds;
     const actualMove = Math.min(moveAmount, dist);
 
-    this.position.x += dir.x * actualMove;
-    this.position.y += dir.y * actualMove;
+    const newX = this.position.x + dir.x * actualMove;
+    const newY = this.position.y + dir.y * actualMove;
+
+    // Clamp to map bounds
+    const clampedX = Math.max(1, Math.min(MAP_WIDTH - 2, newX));
+    const clampedY = Math.max(1, Math.min(MAP_HEIGHT - 2, newY));
+
+    if (world) {
+      if (!world.isCollision(clampedX, clampedY)) {
+        this.position.x = clampedX;
+        this.position.y = clampedY;
+      } else {
+        // Axis-sliding: try each axis independently
+        if (!world.isCollision(clampedX, this.position.y)) {
+          this.position.x = clampedX;
+        } else if (!world.isCollision(this.position.x, clampedY)) {
+          this.position.y = clampedY;
+        }
+        // Both axes blocked — mob stays in place
+      }
+    } else {
+      this.position.x = clampedX;
+      this.position.y = clampedY;
+    }
+
     this.position.direction = vectorToDirection(dir);
   }
 
