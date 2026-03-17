@@ -13,7 +13,6 @@ import {
   CharacterSummary,
   InventoryItem,
   WorldLoot,
-  ZoneId,
 } from './types.js';
 
 // ============================================================
@@ -42,8 +41,7 @@ export enum ClientMessageType {
   DropItem = 'dropItem',
   MoveItem = 'moveItem',
   UseItem = 'useItem',
-  // Zones & Portals
-  UsePortal = 'use_portal',
+
 }
 
 // --- Auth Messages (Client → Server) ---
@@ -152,11 +150,6 @@ export interface UseItemMessage {
   slot: number;
 }
 
-export interface UsePortalMessage {
-  type: ClientMessageType.UsePortal;
-  targetZone: ZoneId;
-}
-
 export type ClientMessage =
   | RegisterMessage
   | LoginMessage
@@ -175,8 +168,7 @@ export type ClientMessage =
   | PickupItemMessage
   | DropItemMessage
   | MoveItemMessage
-  | UseItemMessage
-  | UsePortalMessage;
+  | UseItemMessage;
 
 // ============================================================
 // Server → Client Messages

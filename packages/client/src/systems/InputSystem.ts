@@ -68,9 +68,7 @@ export class InputSystem {
       ENTER: kb.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER, false),
       ESC: kb.addKey(Phaser.Input.Keyboard.KeyCodes.ESC, false),
       M: kb.addKey(Phaser.Input.Keyboard.KeyCodes.M, false),
-      B: kb.addKey(Phaser.Input.Keyboard.KeyCodes.B, false),
       I: kb.addKey(Phaser.Input.Keyboard.KeyCodes.I, false),
-      C: kb.addKey(Phaser.Input.Keyboard.KeyCodes.C, false),
     };
   }
 
