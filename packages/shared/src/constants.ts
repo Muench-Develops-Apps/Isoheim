@@ -635,6 +635,12 @@ export const INVENTORY_SIZE = 20;
 export const LOOT_EXPIRY_MS = 60_000;
 export const LOOT_KILLER_ONLY_MS = 30_000;
 export const LOOT_PICKUP_RANGE = 2.0;
+export const PORTAL_USE_RANGE = 2.0;
+
+// Mob separation (prevents permanent overlap)
+export const MOB_SEPARATION_DISTANCE = 0.4;
+export const MOB_SEPARATION_EPSILON = 0.001;
+export const MOB_SEPARATION_PUSH_FACTOR = 0.5;
 
 // ============================================================
 // Item Database

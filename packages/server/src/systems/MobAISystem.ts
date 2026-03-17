@@ -27,35 +27,40 @@ export class MobAISystem {
   update(world: World, deltaMs: number, now: number): void {
     const deltaSeconds = deltaMs / 1000;
 
-    for (const mob of world.mobs.values()) {
-      if (mob.isDead) continue;
+    for (const zone of world.zoneManager.getAllZones()) {
+      for (const mob of zone.mobs.values()) {
+        if (mob.isDead) continue;
 
-      // Update ability cooldowns
-      for (const [abilityId, cooldown] of mob.abilityCooldowns) {
-        const remaining = Math.max(0, cooldown - deltaMs);
-        if (remaining <= 0) {
-          mob.abilityCooldowns.delete(abilityId);
-        } else {
-          mob.abilityCooldowns.set(abilityId, remaining);
+        this.updateAbilityCooldowns(mob, deltaMs);
+
+        switch (mob.aiState) {
+          case MobAIState.Idle:
+            this.processIdle(mob, world, deltaMs);
+            break;
+          case MobAIState.Patrol:
+            this.processPatrol(mob, world, deltaSeconds);
+            break;
+          case MobAIState.Chase:
+            this.processChase(mob, world, deltaSeconds);
+            break;
+          case MobAIState.Attack:
+            this.processAttack(mob, world, now);
+            break;
+          case MobAIState.Leash:
+            this.processLeash(mob, world, deltaSeconds);
+            break;
         }
       }
+    }
+  }
 
-      switch (mob.aiState) {
-        case MobAIState.Idle:
-          this.processIdle(mob, world, deltaMs);
-          break;
-        case MobAIState.Patrol:
-          this.processPatrol(mob, world, deltaSeconds);
-          break;
-        case MobAIState.Chase:
-          this.processChase(mob, world, deltaSeconds);
-          break;
-        case MobAIState.Attack:
-          this.processAttack(mob, world, now);
-          break;
-        case MobAIState.Leash:
-          this.processLeash(mob, world, deltaSeconds);
-          break;
+  private updateAbilityCooldowns(mob: Mob, deltaMs: number): void {
+    for (const [abilityId, cooldown] of mob.abilityCooldowns) {
+      const remaining = Math.max(0, cooldown - deltaMs);
+      if (remaining <= 0) {
+        mob.abilityCooldowns.delete(abilityId);
+      } else {
+        mob.abilityCooldowns.set(abilityId, remaining);
       }
     }
   }
@@ -79,7 +84,7 @@ export class MobAISystem {
         const dist = Math.random() * MOB_PATROL_RANGE;
         const tx = mob.spawnOrigin.x + Math.cos(angle) * dist;
         const ty = mob.spawnOrigin.y + Math.sin(angle) * dist;
-        if (!world.isCollision(tx, ty)) {
+        if (!world.isCollision(tx, ty, mob.zoneId)) {
           mob.patrolTarget = { x: tx, y: ty };
           mob.aiState = MobAIState.Patrol;
           break;
@@ -172,31 +177,35 @@ export class MobAISystem {
     
     // Auto attack if not using ability and can attack
     if (!usedAbility && mob.canAutoAttack(now)) {
-      const effectivePlayerStats = target.getEffectiveStats(this.buffSystem);
-      const effectiveMobStats = mob.getEffectiveStats(this.buffSystem);
-      const rawDamage = this.calculateDamage(effectiveMobStats.attack, effectivePlayerStats.defense);
-      const event = target.takeDamage(rawDamage, mob.id);
-      mob.lastAutoAttackTime = now;
+      this.processAutoAttack(mob, target, world, now);
+    }
+  }
 
-      this.network.broadcastToAll({
-        type: ServerMessageType.DamageDealt,
-        event,
+  private processAutoAttack(mob: Mob, target: Player, world: World, now: number): void {
+    const effectivePlayerStats = target.getEffectiveStats(this.buffSystem);
+    const effectiveMobStats = mob.getEffectiveStats(this.buffSystem);
+    const rawDamage = this.calculateDamage(effectiveMobStats.attack, effectivePlayerStats.defense);
+    const event = target.takeDamage(rawDamage, mob.id);
+    mob.lastAutoAttackTime = now;
+
+    this.network.broadcastToZone(mob.zoneId, {
+      type: ServerMessageType.DamageDealt,
+      event,
+    });
+
+    if (target.isDead) {
+      this.network.broadcastToZone(mob.zoneId, {
+        type: ServerMessageType.EntityDied,
+        entityId: target.id,
+        killerName: mob.def.name,
       });
-
-      if (target.isDead) {
-        this.network.broadcastToAll({
-          type: ServerMessageType.EntityDied,
-          entityId: target.id,
-          killerName: mob.def.name,
-        });
-        mob.targetId = null;
-        const newTarget = this.findHighestThreat(mob, world);
-        if (newTarget) {
-          mob.targetId = newTarget.id;
-          mob.aiState = MobAIState.Chase;
-        } else {
-          mob.leash();
-        }
+      mob.targetId = null;
+      const newTarget = this.findHighestThreat(mob, world);
+      if (newTarget) {
+        mob.targetId = newTarget.id;
+        mob.aiState = MobAIState.Chase;
+      } else {
+        mob.leash();
       }
     }
   }
@@ -216,7 +225,8 @@ export class MobAISystem {
     let closest: Player | null = null;
     let closestDist = AGGRO_RANGE;
 
-    for (const player of world.players.values()) {
+    const zonePlayers = world.getZonePlayers(mob.zoneId);
+    for (const player of zonePlayers.values()) {
       if (player.isDead) continue;
       // Skip players who are vanished
       if (this.buffSystem.hasBuff(player.id, 'buff-vanish')) continue;
@@ -233,9 +243,10 @@ export class MobAISystem {
   private findHighestThreat(mob: Mob, world: World): Player | null {
     let highestThreat = 0;
     let target: Player | null = null;
+    const zonePlayers = world.getZonePlayers(mob.zoneId);
 
     for (const [playerId, threat] of mob.threatTable) {
-      const player = world.getPlayer(playerId);
+      const player = zonePlayers.get(playerId);
       if (player && !player.isDead && !this.buffSystem.hasBuff(playerId, 'buff-vanish') && threat > highestThreat) {
         highestThreat = threat;
         target = player;
@@ -311,7 +322,7 @@ export class MobAISystem {
       const damage = this.calculateDamage(mob.def.attack, target.stats.defense);
       const event = target.takeDamage(damage, mob.id);
       
-      this.network.broadcastToAll({
+      this.network.broadcastToZone(mob.zoneId, {
         type: ServerMessageType.DamageDealt,
         event: {
           sourceId: mob.id,

@@ -3,8 +3,12 @@ import {
   MapData,
   Vec2,
   Portal,
+  WorldLoot,
   ZONE_METADATA,
   ZONE_PORTALS,
+  MOB_SEPARATION_DISTANCE,
+  MOB_SEPARATION_EPSILON,
+  MOB_SEPARATION_PUSH_FACTOR,
   distance,
 } from '@isoheim/shared';
 import { Player } from '../entities/Player.js';
@@ -15,6 +19,7 @@ export interface Zone {
   mapData: MapData;
   players: Map<string, Player>;
   mobs: Map<string, Mob>;
+  loots: Map<string, import('@isoheim/shared').WorldLoot>;
 }
 
 export class ZoneManager {
@@ -26,6 +31,7 @@ export class ZoneManager {
       mapData,
       players: new Map(),
       mobs: new Map(),
+      loots: new Map(),
     });
     console.log(`[ZoneManager] Registered zone: ${ZONE_METADATA[zoneId].name} (${mapData.width}x${mapData.height})`);
   }
@@ -112,7 +118,6 @@ export class ZoneManager {
     const zone = this.zones.get(zoneId);
     if (!zone) return;
 
-    const MOB_SEPARATION = 0.4;
     const mobArray = Array.from(zone.mobs.values()).filter(m => !m.isDead);
     
     for (let i = 0; i < mobArray.length; i++) {
@@ -123,9 +128,9 @@ export class ZoneManager {
         const dy = b.position.y - a.position.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        if (dist < MOB_SEPARATION && dist > 0.001) {
-          const pushX = (dx / dist) * (MOB_SEPARATION - dist) * 0.5;
-          const pushY = (dy / dist) * (MOB_SEPARATION - dist) * 0.5;
+        if (dist < MOB_SEPARATION_DISTANCE && dist > MOB_SEPARATION_EPSILON) {
+          const pushX = (dx / dist) * (MOB_SEPARATION_DISTANCE - dist) * MOB_SEPARATION_PUSH_FACTOR;
+          const pushY = (dy / dist) * (MOB_SEPARATION_DISTANCE - dist) * MOB_SEPARATION_PUSH_FACTOR;
           
           if (!this.isCollisionInZone(zoneId, a.position.x - pushX, a.position.y - pushY)) {
             a.position.x -= pushX;
@@ -138,5 +143,43 @@ export class ZoneManager {
         }
       }
     }
+  }
+
+  getPlayerIdsInZone(zoneId: ZoneId): string[] {
+    const zone = this.zones.get(zoneId);
+    return zone ? Array.from(zone.players.keys()) : [];
+  }
+
+  getZoneDimensions(zoneId: ZoneId): { width: number; height: number } | undefined {
+    const zone = this.zones.get(zoneId);
+    if (!zone) return undefined;
+    return { width: zone.mapData.width, height: zone.mapData.height };
+  }
+
+  getLootsInZone(zoneId: ZoneId): Map<string, WorldLoot> {
+    const zone = this.zones.get(zoneId);
+    return zone ? zone.loots : new Map();
+  }
+
+  addLootToZone(zoneId: ZoneId, loot: WorldLoot): void {
+    const zone = this.zones.get(zoneId);
+    if (zone) {
+      zone.loots.set(loot.id, loot);
+    }
+  }
+
+  removeLootFromZone(zoneId: ZoneId, lootId: string): void {
+    const zone = this.zones.get(zoneId);
+    if (zone) {
+      zone.loots.delete(lootId);
+    }
+  }
+
+  getLoot(lootId: string): { loot: WorldLoot; zoneId: ZoneId } | undefined {
+    for (const zone of this.zones.values()) {
+      const loot = zone.loots.get(lootId);
+      if (loot) return { loot, zoneId: zone.id };
+    }
+    return undefined;
   }
 }

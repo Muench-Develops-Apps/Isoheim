@@ -24,7 +24,7 @@ export class SpawnSystem {
           x: sp.position.x + (Math.random() - 0.5) * 2,
           y: sp.position.y + (Math.random() - 0.5) * 2,
         };
-        const mob = new Mob(sp.mobType, offset, sp.respawnTime);
+        const mob = new Mob(sp.mobType, offset, sp.respawnTime, zoneId);
         world.addMob(mob, zoneId);
       }
     }
@@ -40,19 +40,21 @@ export class SpawnSystem {
 
   /** Process dead mobs and their respawn timers */
   update(world: World, deltaMs: number): void {
-    for (const mob of world.mobs.values()) {
-      if (!mob.isDead) continue;
+    for (const zone of world.zoneManager.getAllZones()) {
+      for (const mob of zone.mobs.values()) {
+        if (!mob.isDead) continue;
 
-      mob.respawnTimer -= deltaMs;
-      if (mob.respawnTimer <= 0) {
-        mob.respawn();
-        this.network.broadcastToAll({
-          type: ServerMessageType.EntityRespawned,
-          entityId: mob.id,
-          position: { ...mob.position },
-          health: mob.health,
-          maxHealth: mob.maxHealth,
-        });
+        mob.respawnTimer -= deltaMs;
+        if (mob.respawnTimer <= 0) {
+          mob.respawn();
+          this.network.broadcastToZone(zone.id, {
+            type: ServerMessageType.EntityRespawned,
+            entityId: mob.id,
+            position: { ...mob.position },
+            health: mob.health,
+            maxHealth: mob.maxHealth,
+          });
+        }
       }
     }
   }

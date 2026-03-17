@@ -214,21 +214,6 @@ export class HUDScene extends Phaser.Scene {
       this.gameScene.events.emit('chatFocusChanged', false);
     });
 
-    // Guide system
-    this.guideSystem = new GuideSystem(this, this.gameScene);
-
-    // Help button (? icon top-right)
-    this.helpButton = this.add.text(1260, 16, '❓', {
-      fontSize: '20px',
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true })
-      .setDepth(800)
-      .on('pointerdown', () => this.guideSystem.showCurrentTip());
-
-    // Start tutorial on first game entry
-    this.gameScene.events.on('gameReady', () => {
-      this.guideSystem.start();
-    });
-
     // Listen for mute toggle from GameScene (M key)
     this.gameScene.events.on('muteToggled', () => {
       this.updateMuteIndicator();

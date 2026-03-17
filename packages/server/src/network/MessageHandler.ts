@@ -11,6 +11,7 @@ import {
   ZoneId,
   ITEM_DATABASE,
   LOOT_PICKUP_RANGE,
+  PORTAL_USE_RANGE,
   distance,
   generateId,
   WorldLoot,
@@ -259,8 +260,8 @@ export class MessageHandler {
     // Send initial inventory
     this.sendInventoryUpdate(sessionId, player);
 
-    // Send current loot on the ground
-    for (const loot of this.world.loots.values()) {
+    // Send current loot on the ground in player's zone
+    for (const loot of this.world.getLootsInZone(player.currentZone).values()) {
       this.network.sendToPlayer(sessionId, {
         type: ServerMessageType.LootSpawned,
         loot,
@@ -364,11 +365,11 @@ export class MessageHandler {
     const player = this.world.getPlayer(sessionId);
     if (!player || player.isDead) return;
 
-    const loot = this.world.loots.get(msg.lootId);
-    if (!loot) return;
+    const lootResult = this.world.zoneManager.getLoot(msg.lootId);
+    if (!lootResult) return;
 
     // Range check
-    const dist = distance(player.position, loot.position);
+    const dist = distance(player.position, lootResult.loot.position);
     if (dist > LOOT_PICKUP_RANGE) {
       this.network.sendToPlayer(sessionId, {
         type: ServerMessageType.Error,
@@ -416,8 +417,8 @@ export class MessageHandler {
       expiresAt: Date.now() + 60_000,
     };
 
-    this.world.addLoot(loot);
-    this.network.broadcastToAll({
+    this.world.addLoot(loot, player.currentZone);
+    this.network.broadcastToZone(player.currentZone, {
       type: ServerMessageType.LootSpawned,
       loot,
     });
@@ -454,7 +455,7 @@ export class MessageHandler {
     const effect = itemDef.useEffect;
     if (effect.type === 'heal') {
       const event = player.heal(effect.value, player.id);
-      this.network.broadcastToAll({
+      this.network.broadcastToZone(player.currentZone, {
         type: ServerMessageType.DamageDealt,
         event,
       });
@@ -480,8 +481,12 @@ export class MessageHandler {
   private saveAndRemovePlayer(sessionId: string): void {
     const player = this.world.getPlayer(sessionId);
     if (player && player.characterId) {
-      this.db.saveCharacter(player.toCharacterSaveData());
-      this.db.saveInventory(player.characterId, player.inventory);
+      try {
+        this.db.saveCharacter(player.toCharacterSaveData());
+        this.db.saveInventory(player.characterId, player.inventory);
+      } catch (error) {
+        console.error(`[Game] Failed to save player ${player.name} on disconnect:`, error);
+      }
     }
 
     const removed = this.world.removePlayer(sessionId);
@@ -489,7 +494,7 @@ export class MessageHandler {
       this.sessions.delete(sessionId);
       this.chatSystem.removePlayer(sessionId);
 
-      this.network.broadcastToAll({
+      this.network.broadcastToZone(removed.currentZone, {
         type: ServerMessageType.PlayerLeft,
         playerId: sessionId,
       });
@@ -508,8 +513,12 @@ export class MessageHandler {
   saveAllPlayers(): void {
     for (const player of this.world.players.values()) {
       if (player.characterId) {
-        this.db.saveCharacter(player.toCharacterSaveData());
-        this.db.saveInventory(player.characterId, player.inventory);
+        try {
+          this.db.saveCharacter(player.toCharacterSaveData());
+          this.db.saveInventory(player.characterId, player.inventory);
+        } catch (error) {
+          console.error(`[Game] Failed to save player ${player.name}:`, error);
+        }
       }
     }
   }
@@ -520,7 +529,6 @@ export class MessageHandler {
     const player = this.world.getPlayer(sessionId);
     if (!player || player.isDead) return;
 
-    const PORTAL_USE_RANGE = 2.0;
     const portal = this.world.zoneManager.findNearestPortal(
       player.currentZone,
       player.position,
@@ -570,6 +578,15 @@ export class MessageHandler {
 
     // Change zone
     this.world.changePlayerZone(player, newZone, newPosition);
+
+    // Persist zone change to DB immediately
+    try {
+      if (player.characterId) {
+        this.db.saveCharacter(player.toCharacterSaveData());
+      }
+    } catch (error) {
+      console.error(`[Portal] Failed to persist zone change for ${player.name}:`, error);
+    }
 
     // Send zone changed message to player
     this.network.sendToPlayer(sessionId, {

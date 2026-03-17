@@ -48,6 +48,7 @@ function main(): void {
 
   // Create network manager
   const network = new NetworkManager();
+  network.setWorld(world);
 
   // Create systems
   const movementSystem = new MovementSystem();

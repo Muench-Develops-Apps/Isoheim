@@ -46,9 +46,15 @@ export class World {
     return allMobs;
   }
 
-  /** Legacy getter - returns all loots across all zones (not zone-specific yet) */
+  /** Returns all loots across all zones */
   get loots(): Map<string, WorldLoot> {
-    return new Map();
+    const allLoots = new Map<string, WorldLoot>();
+    for (const zone of this.zoneManager.getAllZones()) {
+      for (const [id, loot] of zone.loots) {
+        allLoots.set(id, loot);
+      }
+    }
+    return allLoots;
   }
 
   addPlayer(player: Player): void {
@@ -143,12 +149,64 @@ export class World {
     }
   }
 
-  addLoot(loot: WorldLoot): void {
-    // Not implemented per-zone yet
+  getZonePlayers(zoneId: ZoneId): Map<string, Player> {
+    const zone = this.zoneManager.getZone(zoneId);
+    return zone ? zone.players : new Map();
+  }
+
+  getZoneMobs(zoneId: ZoneId): Map<string, Mob> {
+    const zone = this.zoneManager.getZone(zoneId);
+    return zone ? zone.mobs : new Map();
+  }
+
+  getPlayerZone(playerId: string): ZoneId | undefined {
+    for (const zone of this.zoneManager.getAllZones()) {
+      if (zone.players.has(playerId)) return zone.id;
+    }
+    return undefined;
+  }
+
+  getMobZone(mobId: string): ZoneId | undefined {
+    for (const zone of this.zoneManager.getAllZones()) {
+      if (zone.mobs.has(mobId)) return zone.id;
+    }
+    return undefined;
+  }
+
+  addLoot(loot: WorldLoot, zoneId?: ZoneId): void {
+    const targetZone = zoneId ?? this.findZoneForPosition(loot.position);
+    this.zoneManager.addLootToZone(targetZone, loot);
   }
 
   removeLoot(id: string): void {
-    // Not implemented per-zone yet
+    for (const zone of this.zoneManager.getAllZones()) {
+      if (zone.loots.has(id)) {
+        zone.loots.delete(id);
+        return;
+      }
+    }
+  }
+
+  getLoot(lootId: string): WorldLoot | undefined {
+    const result = this.zoneManager.getLoot(lootId);
+    return result?.loot;
+  }
+
+  getLootsInZone(zoneId: ZoneId): Map<string, WorldLoot> {
+    return this.zoneManager.getLootsInZone(zoneId);
+  }
+
+  private findZoneForPosition(position: Vec2): ZoneId {
+    // Check which zone a mob/entity at this position belongs to by checking nearby players
+    // Default to first zone if we can't determine
+    for (const zone of this.zoneManager.getAllZones()) {
+      for (const player of zone.players.values()) {
+        if (distance(player.position, position) < 100) {
+          return zone.id;
+        }
+      }
+    }
+    return this.zoneManager.getAllZones()[0]?.id ?? ZoneId.StarterPlains;
   }
 
   getPlayersNear(pos: Vec2, range: number, zoneId?: ZoneId): Player[] {

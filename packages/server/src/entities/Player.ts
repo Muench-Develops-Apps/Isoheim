@@ -24,6 +24,7 @@ import {
   LEVEL_STAT_SCALING,
   INVENTORY_SIZE,
   ITEM_DATABASE,
+  ZONE_PLAYER_SPAWNS,
   xpForLevel,
   generateId,
   distance,
@@ -258,9 +259,10 @@ export class Player {
     this.isDead = false;
     this.health = this.maxHealth;
     this.mana = this.maxMana;
+    const spawn = ZONE_PLAYER_SPAWNS[this.currentZone];
     this.position = {
-      x: PLAYER_SPAWN_X,
-      y: PLAYER_SPAWN_Y,
+      x: spawn.x,
+      y: spawn.y,
       direction: Direction.S,
     };
     this.respawnTimer = 0;

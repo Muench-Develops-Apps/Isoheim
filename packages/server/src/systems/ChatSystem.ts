@@ -55,7 +55,7 @@ export class ChatSystem {
         break;
 
       case ChatChannel.Say: {
-        const nearbyPlayers = world.getPlayersNear(player.position, SAY_RANGE);
+        const nearbyPlayers = world.getPlayersNear(player.position, SAY_RANGE, player.currentZone);
         for (const nearby of nearbyPlayers) {
           this.network.sendToPlayer(nearby.id, {
             type: ServerMessageType.ChatReceived,
