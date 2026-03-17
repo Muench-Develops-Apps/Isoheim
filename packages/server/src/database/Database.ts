@@ -13,6 +13,7 @@ export interface CharacterRow {
   health: number;
   mana: number;
   current_zone: string;
+  tutorial_complete: number;
   created_at: number;
   last_played: number;
 }
@@ -79,6 +80,16 @@ export class Database {
         ALTER TABLE characters ADD COLUMN current_zone TEXT NOT NULL DEFAULT 'starter-plains';
       `);
       console.log('[DB] Migration: Added current_zone column to characters table');
+    }
+
+    // Migration: Add tutorial_complete column to existing characters
+    const hasTutorialComplete = columns.some(col => col.name === 'tutorial_complete');
+    
+    if (!hasTutorialComplete) {
+      this.db.exec(`
+        ALTER TABLE characters ADD COLUMN tutorial_complete INTEGER NOT NULL DEFAULT 0;
+      `);
+      console.log('[DB] Migration: Added tutorial_complete column to characters table');
     }
   }
 
@@ -157,6 +168,17 @@ export class Database {
       .prepare('SELECT COUNT(*) AS cnt FROM characters WHERE account_id = ?')
       .get(accountId) as { cnt: number };
     return row.cnt;
+  }
+
+  markTutorialComplete(characterId: string): void {
+    this.db.prepare('UPDATE characters SET tutorial_complete = 1 WHERE id = ?').run(characterId);
+  }
+
+  isTutorialComplete(characterId: string): boolean {
+    const row = this.db
+      .prepare('SELECT tutorial_complete FROM characters WHERE id = ?')
+      .get(characterId) as { tutorial_complete: number } | undefined;
+    return row ? row.tutorial_complete === 1 : false;
   }
 
   // ── Inventory methods ─────────────────────────────────────

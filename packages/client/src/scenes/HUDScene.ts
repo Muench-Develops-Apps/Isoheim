@@ -103,7 +103,12 @@ export class HUDScene extends Phaser.Scene {
     this.helpButton = this.add.text(1260, 16, '❓', { fontSize: '20px' })
       .setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(800)
       .on('pointerdown', () => this.guideSystem.showCurrentTip());
-    this.onGameScene('gameReady', () => { this.guideSystem.start(); });
+    this.onGameScene('gameReady', (data: { tutorialComplete?: boolean }) => {
+      if (data?.tutorialComplete) {
+        this.guideSystem.setServerComplete(true);
+      }
+      this.guideSystem.start();
+    });
 
     // Latency display
     this.latencyText = this.add.text(1230, 4, '', {

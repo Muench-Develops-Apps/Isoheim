@@ -37,6 +37,7 @@ export enum ClientMessageType {
   SelectTarget = 'select_target',
   Chat = 'chat',
   Ping = 'ping',
+  TutorialComplete = 'tutorial_complete',
   // Items & Inventory
   PickupItem = 'pickupItem',
   DropItem = 'dropItem',
@@ -127,6 +128,10 @@ export interface PingMessage {
   timestamp: number;
 }
 
+export interface TutorialCompleteMessage {
+  type: ClientMessageType.TutorialComplete;
+}
+
 // --- Item Messages (Client → Server) ---
 
 export interface PickupItemMessage {
@@ -171,6 +176,7 @@ export type ClientMessage =
   | SelectTargetMessage
   | ChatClientMessage
   | PingMessage
+  | TutorialCompleteMessage
   | PickupItemMessage
   | DropItemMessage
   | MoveItemMessage
@@ -261,6 +267,7 @@ export interface WelcomeMessage {
   playerId: string;
   player: PlayerState;
   mapData: MapData;
+  tutorialComplete?: boolean;
 }
 
 export interface WorldStateMessage {

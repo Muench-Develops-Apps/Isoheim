@@ -133,6 +133,10 @@ export class MessageHandler {
         });
         break;
 
+      case ClientMessageType.TutorialComplete:
+        this.handleTutorialComplete(sessionId);
+        break;
+
       case ClientMessageType.PickupItem:
         this.handlePickupItem(sessionId, message as PickupItemMessage);
         break;
@@ -249,12 +253,16 @@ export class MessageHandler {
     const playerZone = this.world.zoneManager.getZone(player.currentZone);
     const mapData = playerZone ? playerZone.mapData : this.world.mapData;
 
+    // Get tutorial completion status
+    const tutorialComplete = this.db.isTutorialComplete(charInfo.id);
+
     // Send welcome with map data
     this.network.sendToPlayer(sessionId, {
       type: ServerMessageType.Welcome,
       playerId: player.id,
       player: player.toState(),
       mapData,
+      tutorialComplete,
     });
 
     // Send initial inventory
@@ -357,6 +365,14 @@ export class MessageHandler {
     if (!player) return;
 
     this.chatSystem.handleChat(player, channel, content, this.world);
+  }
+
+  private handleTutorialComplete(sessionId: string): void {
+    const player = this.world.getPlayer(sessionId);
+    if (!player || !player.characterId) return;
+
+    this.db.markTutorialComplete(player.characterId);
+    console.log(`[Tutorial] Tutorial completed for ${player.name} [${player.characterId}]`);
   }
 
   // ── Item handlers ─────────────────────────────────────────
