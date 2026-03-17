@@ -34,6 +34,8 @@ export class HUDScene extends Phaser.Scene {
   private gameScene!: Phaser.Scene;
   private zoneNameText!: Phaser.GameObjects.Text;
   private tooltipText!: Phaser.GameObjects.Text;
+  private _gameSceneListeners: Array<{ event: string; cb: (...args: any[]) => void }> = [];
+  private _ownListeners: Array<{ event: string; cb: (...args: any[]) => void }> = [];
 
   constructor() {
     super({ key: 'HUDScene' });
@@ -101,7 +103,7 @@ export class HUDScene extends Phaser.Scene {
     this.helpButton = this.add.text(1260, 16, '❓', { fontSize: '20px' })
       .setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(800)
       .on('pointerdown', () => this.guideSystem.showCurrentTip());
-    this.gameScene.events.on('gameReady', () => { this.guideSystem.start(); });
+    this.onGameScene('gameReady', () => { this.guideSystem.start(); });
 
     // Latency display
     this.latencyText = this.add.text(1230, 4, '', {
@@ -145,64 +147,64 @@ export class HUDScene extends Phaser.Scene {
     this.tooltipText.setOrigin(0.5, 1).setDepth(10000).setVisible(false);
 
     // Listen to GameScene events
-    this.gameScene.events.on('updatePlayerHealth', (current: number, max: number) => {
+    this.onGameScene('updatePlayerHealth', (current: number, max: number) => {
       this.healthBar.setValue(current, max);
     });
 
-    this.gameScene.events.on('updatePlayerMana', (current: number, max: number) => {
+    this.onGameScene('updatePlayerMana', (current: number, max: number) => {
       this.manaBar.setValue(current, max);
     });
 
-    this.gameScene.events.on('updatePlayerXp', (current: number, max: number) => {
+    this.onGameScene('updatePlayerXp', (current: number, max: number) => {
       this.xpBar.setValue(current, max);
     });
 
-    this.gameScene.events.on('updateBuffs', (buffs: BuffState[]) => {
+    this.onGameScene('updateBuffs', (buffs: BuffState[]) => {
       this.buffBar.update(buffs);
     });
 
-    this.gameScene.events.on('setAbilities', (abilities: AbilityDef[]) => {
+    this.onGameScene('setAbilities', (abilities: AbilityDef[]) => {
       this.actionBar.setAbilities(abilities);
     });
 
-    this.gameScene.events.on('updateCooldowns', (cooldowns: CooldownState[]) => {
+    this.onGameScene('updateCooldowns', (cooldowns: CooldownState[]) => {
       this.actionBar.updateCooldowns(cooldowns);
     });
 
-    this.gameScene.events.on('chatMessage', (msg: ChatMessage) => {
+    this.onGameScene('chatMessage', (msg: ChatMessage) => {
       this.chatPanel.addMessage(msg);
       SoundManager.instance.playChatPing();
     });
 
-    this.gameScene.events.on('showTarget', (name: string, health: number, maxHealth: number) => {
+    this.onGameScene('showTarget', (name: string, health: number, maxHealth: number) => {
       this.targetFrame.show(name, health, maxHealth);
     });
 
-    this.gameScene.events.on('updateTarget', (name: string, health: number, maxHealth: number) => {
+    this.onGameScene('updateTarget', (name: string, health: number, maxHealth: number) => {
       this.targetFrame.show(name, health, maxHealth);
     });
 
-    this.gameScene.events.on('hideTarget', () => {
+    this.onGameScene('hideTarget', () => {
       this.targetFrame.hide();
     });
 
-    this.gameScene.events.on('targetChanged', (id: string | null) => {
+    this.onGameScene('targetChanged', (id: string | null) => {
       this.actionBar.setTargetId(id);
     });
 
-    this.gameScene.events.on('startCast', (name: string, durationMs: number) => {
+    this.onGameScene('startCast', (name: string, durationMs: number) => {
       this.castBar.startCast(name, durationMs);
     });
 
-    this.gameScene.events.on('mapLoaded', (mapData: MapData) => {
+    this.onGameScene('mapLoaded', (mapData: MapData) => {
       this.minimap.renderMap(mapData);
     });
 
-    this.gameScene.events.on('toggleGameMenu', () => {
+    this.onGameScene('toggleGameMenu', () => {
       this.escMenu.toggle();
     });
 
-    this.gameScene.events.on('toggleChatPanel', () => {
+    this.onGameScene('toggleChatPanel', () => {
       this.chatPanel.toggleFocus();
       const isFocused = this.chatPanel.isFocused;
       // Notify GameScene InputSystem
@@ -210,44 +212,44 @@ export class HUDScene extends Phaser.Scene {
     });
 
     // Chat blur event
-    this.events.on('chatBlurred', () => {
+    this.onOwn('chatBlurred', () => {
       this.gameScene.events.emit('chatFocusChanged', false);
     });
 
     // Listen for mute toggle from GameScene (M key)
-    this.gameScene.events.on('muteToggled', () => {
+    this.onGameScene('muteToggled', () => {
       this.updateMuteIndicator();
     });
 
     // Inventory toggle
-    this.gameScene.events.on('toggleInventory', () => {
+    this.onGameScene('toggleInventory', () => {
       this.inventoryPanel.toggle();
     });
 
     // Inventory data updates
-    this.gameScene.events.on('inventoryUpdated', (inventory: InventoryItem[]) => {
+    this.onGameScene('inventoryUpdated', (inventory: InventoryItem[]) => {
       this.inventoryPanel.updateInventory(inventory);
     });
 
     // Loot window
-    this.gameScene.events.on('showLoot', (loot: WorldLoot) => {
+    this.onGameScene('showLoot', (loot: WorldLoot) => {
       this.lootWindow.show(loot);
     });
 
-    this.gameScene.events.on('lootItemRemoved', (lootId: string, itemIndex: number) => {
+    this.onGameScene('lootItemRemoved', (lootId: string, itemIndex: number) => {
       if (this.lootWindow.getCurrentLootId() === lootId) {
         this.lootWindow.removeItem(itemIndex);
       }
     });
 
-    this.gameScene.events.on('lootDespawned', (lootId: string) => {
+    this.onGameScene('lootDespawned', (lootId: string) => {
       if (this.lootWindow.getCurrentLootId() === lootId) {
         this.lootWindow.close();
       }
     });
 
     // Listen for chat focus changes in game scene's input system
-    this.gameScene.events.on('chatFocusChanged', (focused: boolean) => {
+    this.onGameScene('chatFocusChanged', (focused: boolean) => {
       // The InputSystem in GameScene will read this
       const inputSystem = (this.gameScene as { inputSystem?: { chatFocused?: boolean } }).inputSystem;
       if (inputSystem && 'chatFocused' in inputSystem) {
@@ -255,17 +257,17 @@ export class HUDScene extends Phaser.Scene {
       }
     });
 
-    this.gameScene.events.on('zoneChanged', (zoneName: string) => {
+    this.onGameScene('zoneChanged', (zoneName: string) => {
       this.zoneNameText.setText(zoneName);
     });
 
-    this.gameScene.events.on('showTooltip', (text: string, x: number, y: number) => {
+    this.onGameScene('showTooltip', (text: string, x: number, y: number) => {
       this.tooltipText.setText(text);
       this.tooltipText.setPosition(x, y);
       this.tooltipText.setVisible(true);
     });
 
-    this.gameScene.events.on('hideTooltip', () => {
+    this.onGameScene('hideTooltip', () => {
       this.tooltipText.setVisible(false);
     });
   }
@@ -288,5 +290,31 @@ export class HUDScene extends Phaser.Scene {
     if (nm) {
       this.latencyText.setText(`${nm.latency}ms`);
     }
+  }
+
+  private onGameScene(event: string, cb: (...args: any[]) => void): void {
+    this.gameScene.events.on(event, cb);
+    this._gameSceneListeners.push({ event, cb });
+  }
+
+  private onOwn(event: string, cb: (...args: any[]) => void): void {
+    this.events.on(event, cb);
+    this._ownListeners.push({ event, cb });
+  }
+
+  private cleanupListeners(): void {
+    for (const { event, cb } of this._gameSceneListeners) {
+      this.gameScene.events.off(event, cb);
+    }
+    this._gameSceneListeners = [];
+
+    for (const { event, cb } of this._ownListeners) {
+      this.events.off(event, cb);
+    }
+    this._ownListeners = [];
+  }
+
+  shutdown(): void {
+    this.cleanupListeners();
   }
 }
