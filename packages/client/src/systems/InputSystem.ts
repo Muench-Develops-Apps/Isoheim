@@ -89,9 +89,12 @@ export class InputSystem {
 
   /** Call each frame – sends move / stop_move messages */
   update(): void {
-    // ESC toggles game menu regardless of other input state
+    // ESC: close chat if focused, otherwise toggle game menu
     if (Phaser.Input.Keyboard.JustDown(this.keys.ESC)) {
-      // Stop movement before opening menu
+      if (this._chatFocused) {
+        // ChatPanel handles ESC blur via its own keydown listener
+        return;
+      }
       const wasMoving = this.lastDir.x !== 0 || this.lastDir.y !== 0;
       if (wasMoving) {
         this.moveSeq++;
@@ -99,6 +102,12 @@ export class InputSystem {
         this.lastDir = { x: 0, y: 0 };
       }
       this.scene.events.emit('toggleEscMenu');
+      return;
+    }
+
+    // ENTER toggles chat regardless of focus state (send message or open chat)
+    if (Phaser.Input.Keyboard.JustDown(this.keys.ENTER)) {
+      this.scene.events.emit('toggleChat');
       return;
     }
 
@@ -117,7 +126,6 @@ export class InputSystem {
       });
     } else if (!isMoving && wasMoving) {
       this.moveSeq++;
-      // stop move – position will be filled by caller
       this.scene.events.emit('requestStopMove', this.moveSeq);
     }
 
@@ -132,11 +140,6 @@ export class InputSystem {
     // C to toggle character panel
     if (Phaser.Input.Keyboard.JustDown(this.keys.C)) {
       this.scene.events.emit('toggleCharacter');
-    }
-
-    // Enter to toggle chat
-    if (Phaser.Input.Keyboard.JustDown(this.keys.ENTER)) {
-      this.scene.events.emit('toggleChat');
     }
 
     // B or I to toggle inventory

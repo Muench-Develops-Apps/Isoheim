@@ -227,6 +227,27 @@ Issue #3 requires implementing a multi-zone game world with zone transitions, ne
 - Monitor spatial query performance as zones scale
 - Validate portal symmetry in map generators
 
+### Decision: PR #16 Clean Code Rejection & Follow-Up Fixes
+
+**Date:** 2026-03-17  
+**By:** Kormac (Code Reviewer)  
+**Context:** Re-review of PR #16 ("feat: zones, portals & dungeon system (#3)")  
+**Status:** ✅ RESOLVED (Fixes merged in PR #17)
+
+**Initial Finding:** While the functional implementation is solid (100 passing tests), PR #16 introduced two code quality issues:
+
+1. **HUDScene Memory Leak (Blocking)** — 27 event listeners bound but never unbound on destroy. Violates Clean Code standard from PR #15. Cumulative leak risk over play sessions.
+   - **Fix (Leah):** Implemented event listener tracking (Map) + shutdown() cleanup method
+   - **Status:** ✅ Fixed in PR #17
+
+2. **MobAISystem Magic Numbers (Non-Blocking)** — 9 numeric literals (HP, cooldowns, damage) lack intention-revealing names. Technical debt, not functional blocker.
+   - **Fix (Tyrael):** Extracted 9 constants (SPIDER_BASE_HP, ABILITY_DECISION_INTERVAL_MS, etc.)
+   - **Status:** ✅ Fixed in PR #17
+
+**Resolution:** Cherry-picked fixes to fix/pr16-review-followup branch. PR #17 opened and merged after CI green. Issue #3 marked closed.
+
+**Outcome:** Establishes that **post-merge code review is acceptable for long-running projects**. Review standards (from PR #15) remain enforced; fixes can be fast-tracked in follow-up PRs if initial review missed them but subsequent reviewer caught them.
+
 ---
 
 ## Historical Decisions
@@ -235,5 +256,5 @@ Issue #3 requires implementing a multi-zone game world with zone transitions, ne
 
 ---
 
-**Last Updated:** 2026-03-17T05:00:00Z  
+**Last Updated:** 2026-03-17T10:16:37Z  
 **Scribe:** Copilot

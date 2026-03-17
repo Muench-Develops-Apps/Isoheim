@@ -175,7 +175,7 @@ export class GameScene extends Phaser.Scene {
     this.cameraSystem.snapTo(screen.x, screen.y);
 
     // Signal game is ready for tutorial
-    this.events.emit('gameReady');
+    this.events.emit('gameReady', { tutorialComplete: msg.tutorialComplete ?? false });
   }
 
   private registerNetworkHandlers(): void {
@@ -561,9 +561,9 @@ export class GameScene extends Phaser.Scene {
     } else {
       pe = new PlayerEntity(this, state, isLocal);
       this.players.set(state.id, pe);
-      if (isLocal) {
-        this.localPlayer = pe;
-      }
+    }
+    if (isLocal) {
+      this.localPlayer = pe;
     }
   }
 

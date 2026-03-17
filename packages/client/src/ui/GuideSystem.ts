@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { ClientMessageType } from '@isoheim/shared';
+import { NetworkManager } from '../network/NetworkManager';
 
 export interface TutorialStep {
   id: string;
@@ -120,6 +122,7 @@ export class GuideSystem {
     } catch {
       // ignore
     }
+    NetworkManager.instance.send({ type: ClientMessageType.TutorialComplete });
     this.clearUI();
   }
 
@@ -275,14 +278,16 @@ export class GuideSystem {
   }
 
   showCurrentTip(): void {
-    if (this.isComplete) {
-      this.currentStep = TUTORIAL_STEPS.length - 1;
-      this.isComplete = false;
+    if (this.isComplete) return;
+    if (!this.isVisible) {
       this.isVisible = true;
       this.showStep();
-    } else if (!this.isVisible) {
-      this.isVisible = true;
-      this.showStep();
+    }
+  }
+
+  setServerComplete(complete: boolean): void {
+    if (complete) {
+      this.isComplete = true;
     }
   }
 

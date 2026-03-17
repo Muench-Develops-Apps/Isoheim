@@ -55,7 +55,8 @@ export function vectorToDirection(v: Vec2): Direction {
 
 /** Lerp between two values */
 export function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * Math.clamp01(t);
+  const clamped = Math.max(0, Math.min(1, t));
+  return a + (b - a) * clamped;
 }
 
 /** Clamp-safe Math extension */
