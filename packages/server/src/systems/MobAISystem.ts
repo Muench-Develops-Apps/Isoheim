@@ -4,6 +4,10 @@ import {
   MOB_PATROL_RANGE,
   distance,
   ServerMessageType,
+  MOB_ABILITIES,
+  MOB_ABILITY_MAP,
+  BUFF_DEFINITIONS,
+  MobType,
 } from '@isoheim/shared';
 import { Mob, MobAIState } from '../entities/Mob.js';
 import { Player } from '../entities/Player.js';
@@ -25,6 +29,16 @@ export class MobAISystem {
 
     for (const mob of world.mobs.values()) {
       if (mob.isDead) continue;
+
+      // Update ability cooldowns
+      for (const [abilityId, cooldown] of mob.abilityCooldowns) {
+        const remaining = Math.max(0, cooldown - deltaMs);
+        if (remaining <= 0) {
+          mob.abilityCooldowns.delete(abilityId);
+        } else {
+          mob.abilityCooldowns.set(abilityId, remaining);
+        }
+      }
 
       switch (mob.aiState) {
         case MobAIState.Idle:
@@ -153,7 +167,11 @@ export class MobAISystem {
       return;
     }
 
-    if (mob.canAutoAttack(now)) {
+    // Try to use ability first (if mob has abilities)
+    const usedAbility = this.tryUseAbility(mob, target, world, now);
+    
+    // Auto attack if not using ability and can attack
+    if (!usedAbility && mob.canAutoAttack(now)) {
       const effectivePlayerStats = target.getEffectiveStats(this.buffSystem);
       const effectiveMobStats = mob.getEffectiveStats(this.buffSystem);
       const rawDamage = this.calculateDamage(effectiveMobStats.attack, effectivePlayerStats.defense);
@@ -231,5 +249,91 @@ export class MobAISystem {
     const base = attack * (attack / (attack + defense));
     const variance = 0.85 + Math.random() * 0.30;
     return Math.round(base * variance);
+  }
+
+  /** Try to use a mob ability if available and off cooldown */
+  private tryUseAbility(mob: Mob, target: Player, world: World, now: number): boolean {
+    const abilityIds = MOB_ABILITY_MAP[mob.mobType];
+    if (!abilityIds || abilityIds.length === 0) return false;
+
+    // For Bone Lord, rotate through abilities
+    if (mob.mobType === MobType.BoneLord) {
+      return this.useBoneLordAbility(mob, target, world, now, abilityIds);
+    }
+
+    // For other mobs, try each ability in order
+    for (const abilityId of abilityIds) {
+      if (this.canUseAbility(mob, abilityId, target)) {
+        this.useAbility(mob, abilityId, target, world, now);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private useBoneLordAbility(mob: Mob, target: Player, world: World, now: number, abilityIds: string[]): boolean {
+    // Try abilities in rotation
+    for (let i = 0; i < abilityIds.length; i++) {
+      const nextIndex = (mob.lastAbilityIndex + 1 + i) % abilityIds.length;
+      const abilityId = abilityIds[nextIndex];
+      
+      if (this.canUseAbility(mob, abilityId, target)) {
+        this.useAbility(mob, abilityId, target, world, now);
+        mob.lastAbilityIndex = nextIndex;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private canUseAbility(mob: Mob, abilityId: string, target: Player): boolean {
+    const ability = MOB_ABILITIES[abilityId];
+    if (!ability) return false;
+
+    // Check cooldown
+    if (mob.abilityCooldowns.has(abilityId)) return false;
+
+    // Check range
+    const dist = distance(mob.position, target.position);
+    return dist <= ability.range;
+  }
+
+  private useAbility(mob: Mob, abilityId: string, target: Player, world: World, now: number): void {
+    const ability = MOB_ABILITIES[abilityId];
+    if (!ability) return;
+
+    // Apply cooldown
+    mob.abilityCooldowns.set(abilityId, ability.cooldown * 1000);
+
+    // Deal damage if applicable
+    if (ability.damage > 0) {
+      const damage = this.calculateDamage(mob.def.attack, target.stats.defense);
+      const event = target.takeDamage(damage, mob.id);
+      
+      this.network.broadcastToAll({
+        type: ServerMessageType.DamageDealt,
+        event: {
+          sourceId: mob.id,
+          targetId: target.id,
+          amount: damage,
+          abilityId,
+          isCrit: false,
+          isDodge: false,
+          isMiss: false,
+          isHeal: false,
+        },
+      });
+    }
+
+    // Apply buff if applicable
+    if (ability.buffId) {
+      const buffDef = BUFF_DEFINITIONS[ability.buffId];
+      if (buffDef) {
+        this.buffSystem.applyBuff(target.id, buffDef);
+      }
+    }
+
+    console.log(`[MobAI] ${mob.def.name} used ${ability.name} on ${target.name}`);
   }
 }

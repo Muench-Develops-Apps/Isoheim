@@ -56,6 +56,10 @@ export class Mob {
   // Threat
   threatTable: Map<string, number> = new Map();
 
+  // Abilities
+  abilityCooldowns: Map<string, number> = new Map();
+  lastAbilityIndex: number = -1; // For rotating abilities (Bone Lord)
+
   constructor(mobType: MobType, spawnPos: Vec2, respawnTimeSec: number) {
     this.id = generateId();
     this.mobType = mobType;

@@ -1,4 +1,4 @@
-import { MobType, ServerMessageType } from '@isoheim/shared';
+import { MobType, ServerMessageType, ZoneId } from '@isoheim/shared';
 import { Mob } from '../entities/Mob.js';
 import { World } from '../core/World.js';
 import { NetworkManager } from '../network/NetworkManager.js';
@@ -10,18 +10,31 @@ export class SpawnSystem {
     this.network = network;
   }
 
-  /** Initial mob spawn based on map spawn points */
-  spawnInitialMobs(world: World): void {
-    for (const sp of world.mapData.spawnPoints) {
+  /** Initial mob spawn for a specific zone */
+  spawnInitialMobsForZone(world: World, zoneId: ZoneId): void {
+    const zone = world.zoneManager.getZone(zoneId);
+    if (!zone) {
+      console.error(`[SpawnSystem] Cannot spawn mobs for unknown zone: ${zoneId}`);
+      return;
+    }
+
+    for (const sp of zone.mapData.spawnPoints) {
       for (let i = 0; i < sp.count; i++) {
-        // Offset slightly so mobs don't stack
         const offset = {
           x: sp.position.x + (Math.random() - 0.5) * 2,
           y: sp.position.y + (Math.random() - 0.5) * 2,
         };
         const mob = new Mob(sp.mobType, offset, sp.respawnTime);
-        world.addMob(mob);
+        world.addMob(mob, zoneId);
       }
+    }
+  }
+
+  /** Initial mob spawn based on map spawn points (legacy - spawns for all zones) */
+  spawnInitialMobs(world: World): void {
+    const zones = world.zoneManager.getAllZones();
+    for (const zone of zones) {
+      this.spawnInitialMobsForZone(world, zone.id);
     }
   }
 
