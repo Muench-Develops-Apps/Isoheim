@@ -310,7 +310,7 @@ export class MobAISystem {
     return dist <= ability.range;
   }
 
-  private useAbility(mob: Mob, abilityId: string, target: Player, world: World, now: number): void {
+  private useAbility(mob: Mob, abilityId: string, target: Player, _world: World, _now: number): void {
     const ability = MOB_ABILITIES[abilityId];
     if (!ability) return;
 
@@ -320,7 +320,7 @@ export class MobAISystem {
     // Deal damage if applicable
     if (ability.damage > 0) {
       const damage = this.calculateDamage(mob.def.attack, target.stats.defense);
-      const event = target.takeDamage(damage, mob.id);
+      target.takeDamage(damage, mob.id);
       
       this.network.broadcastToZone(mob.zoneId, {
         type: ServerMessageType.DamageDealt,

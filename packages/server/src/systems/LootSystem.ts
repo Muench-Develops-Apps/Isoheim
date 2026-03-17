@@ -5,7 +5,6 @@ import {
   LOOT_EXPIRY_MS,
   LOOT_KILLER_ONLY_MS,
   ServerMessageType,
-  ZoneId,
   generateId,
 } from '@isoheim/shared';
 import { Mob } from '../entities/Mob.js';

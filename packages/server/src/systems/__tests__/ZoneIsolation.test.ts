@@ -7,7 +7,6 @@ import {
   MapData,
   ZONE_METADATA,
   AGGRO_RANGE,
-  distance,
 } from '@isoheim/shared';
 import { ZoneManager } from '../ZoneManager.js';
 import { World } from '../../core/World.js';

@@ -36,3 +36,12 @@
 - **Map generators:** 3 distinct zones with unique layouts, mob distributions, portal placements
 - **Spawn system:** Zone-aware mob spawning, Bone Lord single-spawn with 600s respawn timer
 - **Testing notes:** Lyndon already created comprehensive test suite (ZoneManager, Portal, Isolation, Persistence)
+
+## ESLint Cleanup (2026-03-17)
+- Fixed 3 errors (empty catch blocks in ZonePersistence.test.ts) and 46 warnings across 14 files
+- Removals: unused imports (AGGRO_RANGE, LEASH_RANGE, BuffState, distance, Vec2, MobType, etc.)
+- Prefixed unused function params with underscore (_world, _now)
+- Replaced `as any` cast with `as CharacterInfo` in ZonePersistence.test.ts
+- Dropped unused `accountId` assignments in tests (called createTestAccount() without capturing return)
+- Removed dead `createMapData` helper and its now-unused imports (TileType, MapData) in MobAbilities.test.ts
+- Also caught 3 pre-existing warnings in GameLoop.ts, BuffSystem.ts, MobAISystem.ts not in original list

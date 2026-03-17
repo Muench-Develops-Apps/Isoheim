@@ -8,7 +8,6 @@ import {
   ZONE_METADATA,
   ZONE_PORTALS,
   PORTAL_USE_RANGE,
-  ZONE_PLAYER_SPAWNS,
 } from '@isoheim/shared';
 import { ZoneManager } from '../ZoneManager.js';
 import { World } from '../../core/World.js';

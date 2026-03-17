@@ -1,31 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   MobType,
-  ClassType,
   ZoneId,
-  TileType,
-  MapData,
   ZONE_METADATA,
   MOB_DEFINITIONS,
   MOB_ABILITIES,
   MOB_ABILITY_MAP,
   BUFF_DEFINITIONS,
-  AGGRO_RANGE,
   distance,
 } from '@isoheim/shared';
 import { Mob, MobAIState } from '../../entities/Mob.js';
-import { Player } from '../../entities/Player.js';
-
-function createMapData(width: number, height: number): MapData {
-  return {
-    width,
-    height,
-    tiles: Array.from({ length: height }, () => Array(width).fill(TileType.Grass)),
-    collisions: Array.from({ length: height }, () => Array(width).fill(false)),
-    spawnPoints: [],
-    playerSpawn: { x: Math.floor(width / 2), y: Math.floor(height / 2) },
-  };
-}
 
 describe('MobAbilities', () => {
   describe('Mob Ability Definitions', () => {

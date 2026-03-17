@@ -1,7 +1,6 @@
 import {
   TICK_INTERVAL,
   ServerMessageType,
-  ZoneId,
   type ServerMessage,
 } from '@isoheim/shared';
 import { World } from './World.js';

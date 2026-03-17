@@ -168,6 +168,12 @@ export class GameScene extends Phaser.Scene {
     this.events.emit('updatePlayerHealth', msg.player.health, msg.player.maxHealth);
     this.events.emit('updatePlayerMana', msg.player.mana, msg.player.maxMana);
 
+    // Snap camera to player immediately on join
+    const zoneMeta = ZONE_METADATA[this.currentZone];
+    this.cameraSystem.updateBounds(zoneMeta.width, zoneMeta.height);
+    const screen = worldToScreen(this.localWorldX, this.localWorldY);
+    this.cameraSystem.snapTo(screen.x, screen.y);
+
     // Signal game is ready for tutorial
     this.events.emit('gameReady');
   }
@@ -693,9 +699,10 @@ export class GameScene extends Phaser.Scene {
         this.localPlayer.setWorldPosition(msg.playerPosition.x, msg.playerPosition.y);
       }
 
+      const zoneMeta = ZONE_METADATA[msg.newZone];
+      this.cameraSystem.updateBounds(zoneMeta.width, zoneMeta.height);
       const screen = worldToScreen(msg.playerPosition.x, msg.playerPosition.y);
-      this.cameraSystem.setTarget(screen.x, screen.y);
-      this.cameras.main.centerOn(screen.x, screen.y);
+      this.cameraSystem.snapTo(screen.x, screen.y);
     });
   }
 

@@ -6,7 +6,6 @@ import {
   CHAT_RATE_LIMIT,
   ServerMessageType,
   generateId,
-  distance,
 } from '@isoheim/shared';
 import { Player } from '../entities/Player.js';
 import { World } from '../core/World.js';
@@ -74,7 +73,7 @@ export class ChatSystem {
     }
   }
 
-  sendSystemMessage(content: string, world: World): void {
+  sendSystemMessage(content: string, _world: World): void {
     const message: ChatMessage = {
       id: generateId(),
       channel: ChatChannel.System,

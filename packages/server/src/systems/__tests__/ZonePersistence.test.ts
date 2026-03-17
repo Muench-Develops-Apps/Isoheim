@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { ZoneId, ClassType, ZONE_PLAYER_SPAWNS } from '@isoheim/shared';
+import { ZoneId, ClassType, CharacterInfo, ZONE_PLAYER_SPAWNS } from '@isoheim/shared';
 import { Player } from '../../entities/Player.js';
 import { AuthManager } from '../../auth/AuthManager.js';
 import { Database } from '../../database/Database.js';
@@ -20,9 +20,9 @@ describe('ZonePersistence', () => {
 
   afterEach(() => {
     db.close();
-    try { fs.unlinkSync(dbPath); } catch {}
-    try { fs.unlinkSync(dbPath + '-wal'); } catch {}
-    try { fs.unlinkSync(dbPath + '-shm'); } catch {}
+    try { fs.unlinkSync(dbPath); } catch { /* no-op */ }
+    try { fs.unlinkSync(dbPath + '-wal'); } catch { /* no-op */ }
+    try { fs.unlinkSync(dbPath + '-shm'); } catch { /* no-op */ }
   });
 
   function createTestAccount(username = 'testuser'): string {
@@ -42,7 +42,7 @@ describe('ZonePersistence', () => {
     });
 
     it('should persist zone change via db.saveCharacter', () => {
-      const accountId = createTestAccount();
+      createTestAccount();
       const result = auth.createCharacter('session-1', 'TestWarrior', ClassType.Warrior);
       const charId = result.character!.id;
 
@@ -61,7 +61,7 @@ describe('ZonePersistence', () => {
     });
 
     it('should save position along with zone', () => {
-      const accountId = createTestAccount();
+      createTestAccount();
       auth.createCharacter('session-1', 'TestMage', ClassType.Mage);
       const chars = auth.login('session-2', 'testuser', 'password1234').characters!;
       const charId = chars[0].id;
@@ -82,7 +82,7 @@ describe('ZonePersistence', () => {
 
   describe('Zone Loading from Database', () => {
     it('should load player into correct zone on character select', () => {
-      const accountId = createTestAccount();
+      createTestAccount();
       auth.createCharacter('session-1', 'LoadTest', ClassType.Warrior);
       const chars = auth.login('session-load', 'testuser', 'password1234').characters!;
       const charId = chars[0].id;
@@ -100,7 +100,7 @@ describe('ZonePersistence', () => {
     });
 
     it('should restore zone in Player.fromCharacterInfo', () => {
-      const accountId = createTestAccount();
+      createTestAccount();
       auth.createCharacter('session-1', 'FromChar', ClassType.Rogue);
       const chars = auth.login('session-fc', 'testuser', 'password1234').characters!;
       const charId = chars[0].id;
@@ -118,7 +118,7 @@ describe('ZonePersistence', () => {
     });
 
     it('should handle multiple characters with different zones', () => {
-      const accountId = createTestAccount();
+      createTestAccount();
       auth.createCharacter('session-1', 'Char1', ClassType.Warrior);
       auth.createCharacter('session-1', 'Char2', ClassType.Mage);
 
@@ -149,7 +149,7 @@ describe('ZonePersistence', () => {
 
   describe('Default Zone for New Characters', () => {
     it('should spawn new characters in starter-plains', () => {
-      const accountId = createTestAccount();
+      createTestAccount();
       auth.createCharacter('session-1', 'NewWarrior', ClassType.Warrior);
       const chars = auth.login('session-new', 'testuser', 'password1234').characters!;
 
@@ -158,7 +158,7 @@ describe('ZonePersistence', () => {
     });
 
     it('should use default spawn position (25,25) for new characters', () => {
-      const accountId = createTestAccount();
+      createTestAccount();
       auth.createCharacter('session-1', 'NewRogue', ClassType.Rogue);
       const chars = auth.login('session-pos', 'testuser', 'password1234').characters!;
 
@@ -168,7 +168,7 @@ describe('ZonePersistence', () => {
     });
 
     it('should create all new characters in same default zone', () => {
-      const accountId = createTestAccount();
+      createTestAccount();
       auth.createCharacter('session-1', 'C1', ClassType.Warrior);
       auth.createCharacter('session-1', 'C2', ClassType.Mage);
       auth.createCharacter('session-1', 'C3', ClassType.Rogue);
@@ -183,7 +183,7 @@ describe('ZonePersistence', () => {
 
   describe('Invalid Zone Handling', () => {
     it('should default to StarterPlains for invalid zone in DB', () => {
-      const accountId = createTestAccount();
+      createTestAccount();
       auth.createCharacter('session-1', 'CorruptChar', ClassType.Priest);
       const chars = auth.login('session-corrupt', 'testuser', 'password1234').characters!;
       const charId = chars[0].id;
@@ -218,14 +218,14 @@ describe('ZonePersistence', () => {
         currentZone: undefined,
       };
 
-      const player = Player.fromCharacterInfo('s1', charInfo as any);
+      const player = Player.fromCharacterInfo('s1', charInfo as CharacterInfo);
       expect(player.currentZone).toBe(ZoneId.StarterPlains);
     });
   });
 
   describe('Zone Survives Save/Load Cycle', () => {
     it('should preserve zone data across DB close/reopen', () => {
-      const accountId = createTestAccount();
+      createTestAccount();
       auth.createCharacter('session-1', 'PersistChar', ClassType.Warrior);
       const chars = auth.login('session-persist', 'testuser', 'password1234').characters!;
       const charId = chars[0].id;
@@ -254,7 +254,7 @@ describe('ZonePersistence', () => {
     });
 
     it('should handle rapid zone updates (last write wins)', () => {
-      const accountId = createTestAccount();
+      createTestAccount();
       auth.createCharacter('session-1', 'RapidChar', ClassType.Rogue);
       const chars = auth.login('session-rapid', 'testuser', 'password1234').characters!;
       const charId = chars[0].id;

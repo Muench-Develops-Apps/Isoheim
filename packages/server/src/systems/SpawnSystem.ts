@@ -1,4 +1,4 @@
-import { MobType, ServerMessageType, ZoneId } from '@isoheim/shared';
+import { ServerMessageType, ZoneId } from '@isoheim/shared';
 import { Mob } from '../entities/Mob.js';
 import { World } from '../core/World.js';
 import { NetworkManager } from '../network/NetworkManager.js';

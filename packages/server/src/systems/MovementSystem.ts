@@ -1,10 +1,7 @@
 import {
-  Vec2,
-  ZONE_METADATA,
   normalize,
   vectorToDirection,
 } from '@isoheim/shared';
-import { Player } from '../entities/Player.js';
 import { World } from '../core/World.js';
 
 export class MovementSystem {
