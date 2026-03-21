@@ -217,10 +217,10 @@ export class QuestManager {
 
   /** Build the NPC list payload for a specific zone, tailored to a player */
   getNpcListForZone(
-    playerId: string,
+    player: Player,
     zoneId: string,
   ): Array<{ id: NpcId; position: { x: number; y: number }; hasQuest: boolean; questReady: boolean }> {
-    const quests = this.getPlayerQuests(playerId);
+    const quests = this.getPlayerQuests(player.id);
     const result: Array<{ id: NpcId; position: { x: number; y: number }; hasQuest: boolean; questReady: boolean }> = [];
 
     for (const npcDef of Object.values(NPC_DEFINITIONS)) {
@@ -236,17 +236,9 @@ export class QuestManager {
           questReady = true;
         }
 
-        // Check if any quest is available to accept
-        const questDef = QUEST_DEFINITIONS[questId];
-        if (!entry || entry.state === QuestState.Available) {
-          // Not yet taken - check eligibility
-          if (questDef) {
-            const meetsPrereq = !questDef.prerequisiteQuest ||
-              (quests.get(questDef.prerequisiteQuest)?.state === QuestState.TurnedIn);
-            if (meetsPrereq) {
-              hasQuest = true;
-            }
-          }
+        const availableCheck = this.isQuestAvailableForPlayer(player, questId, quests);
+        if (availableCheck.hasQuest) {
+          hasQuest = true;
         }
       }
 
@@ -259,5 +251,28 @@ export class QuestManager {
     }
 
     return result;
+  }
+
+  private isQuestAvailableForPlayer(
+    player: Player,
+    questId: QuestId,
+    playerQuests: Map<QuestId, PlayerQuestEntry>,
+  ): { hasQuest: boolean; questReady: boolean } {
+    const entry = playerQuests.get(questId);
+    const questDef = QUEST_DEFINITIONS[questId];
+
+    if (!entry || entry.state === QuestState.Available) {
+      // Not yet taken - check eligibility
+      if (questDef) {
+        const meetsPrereq = !questDef.prerequisiteQuest ||
+          (playerQuests.get(questDef.prerequisiteQuest)?.state === QuestState.TurnedIn);
+        const meetsLevel = player.level >= questDef.requiredLevel;
+        if (meetsPrereq && meetsLevel) {
+          return { hasQuest: true, questReady: false };
+        }
+      }
+    }
+
+    return { hasQuest: false, questReady: false };
   }
 }

@@ -5,6 +5,8 @@ import {
   ChatChannel,
   ClassType,
   QuestState,
+  QuestId,
+  QuestObjective,
   PickupItemMessage,
   DropItemMessage,
   MoveItemMessage,
@@ -299,6 +301,25 @@ export class MessageHandler {
       return;
     }
 
+    const player = this.loadPlayerData(sessionId, charInfo);
+    this.sessions.set(sessionId, player.id);
+    this.world.addPlayer(player);
+
+    // Load quest progress
+    const savedQuests = this.db.loadQuestProgress(charInfo.id);
+    this.questManager.initPlayer(player.id, savedQuests);
+
+    // Get tutorial completion status
+    const tutorialComplete = this.db.isTutorialComplete(charInfo.id);
+
+    this.sendPlayerWelcome(sessionId, player, tutorialComplete);
+    this.broadcastPlayerJoined(player);
+
+    this.chatSystem.sendSystemMessage(`${player.name} has joined the game.`, this.world);
+    console.log(`[Game] Character selected: ${charInfo.name} (${charInfo.classType}) in zone ${player.currentZone} [${sessionId}]`);
+  }
+
+  private loadPlayerData(sessionId: string, charInfo: any): Player {
     const player = Player.fromCharacterInfo(sessionId, charInfo);
     player.inventory = this.db.loadInventory(charInfo.id);
     const savedEquipment = this.db.loadEquipment(charInfo.id);
@@ -307,19 +328,12 @@ export class MessageHandler {
         player.equipment.set(slot, itemId);
       }
     }
-    this.sessions.set(sessionId, player.id);
-    this.world.addPlayer(player);
+    return player;
+  }
 
-    // Load quest progress
-    const savedQuests = this.db.loadQuestProgress(charInfo.id);
-    this.questManager.initPlayer(player.id, savedQuests);
-
-    // Get map data for player's current zone
+  private sendPlayerWelcome(sessionId: string, player: Player, tutorialComplete: boolean): void {
     const playerZone = this.world.zoneManager.getZone(player.currentZone);
     const mapData = playerZone ? playerZone.mapData : this.world.mapData;
-
-    // Get tutorial completion status
-    const tutorialComplete = this.db.isTutorialComplete(charInfo.id);
 
     // Send welcome with map data
     this.network.sendToPlayer(sessionId, {
@@ -343,8 +357,9 @@ export class MessageHandler {
 
     // Send NPC list for current zone
     this.sendNpcList(sessionId, player);
+  }
 
-    // Broadcast to others in the same zone
+  private broadcastPlayerJoined(player: Player): void {
     const zonePlayers = this.world.zoneManager.getPlayersInZone(player.currentZone);
     for (const otherPlayer of zonePlayers) {
       if (otherPlayer.id !== player.id) {
@@ -354,9 +369,6 @@ export class MessageHandler {
         });
       }
     }
-
-    this.chatSystem.sendSystemMessage(`${player.name} has joined the game.`, this.world);
-    console.log(`[Game] Character selected: ${charInfo.name} (${charInfo.classType}) in zone ${player.currentZone} [${sessionId}]`);
   }
 
   private handleDeleteCharacter(sessionId: string, characterId: string): void {
@@ -530,29 +542,18 @@ export class MessageHandler {
     const invItem = player.inventory.find(i => i.slot === msg.slot);
     if (!invItem) return;
 
-    const itemDef = ITEM_DATABASE[invItem.itemId];
-    if (!itemDef || !itemDef.useEffect) {
+    const validation = this.validateItemUsage(player, invItem);
+    if (!validation.valid) {
       this.network.sendToPlayer(sessionId, {
         type: ServerMessageType.Error,
-        message: 'This item cannot be used',
+        message: validation.reason || 'Cannot use item',
       });
       return;
     }
 
+    const itemDef = ITEM_DATABASE[invItem.itemId];
+    const effect = itemDef.useEffect!;
     const now = Date.now();
-    const effect = itemDef.useEffect;
-
-    // Check cooldowns for consumables
-    if (itemDef.type === 'consumable') {
-      const cooldownCheck = player.canUseConsumable(invItem.itemId, now);
-      if (!cooldownCheck.canUse) {
-        this.network.sendToPlayer(sessionId, {
-          type: ServerMessageType.Error,
-          message: cooldownCheck.reason || 'Item on cooldown',
-        });
-        return;
-      }
-    }
 
     // Apply effect based on type
     if (effect.type === 'heal') {
@@ -566,8 +567,37 @@ export class MessageHandler {
       player.setItemCooldown(invItem.itemId, now, BANDAGE_COOLDOWN_MS);
     }
 
+    this.sendItemUseConfirmation(player, invItem, effect);
+
+    // Consume one from stack
+    player.removeFromInventory(msg.slot, 1);
+    this.sendInventoryUpdate(sessionId, player);
+  }
+
+  private validateItemUsage(player: Player, invItem: any): { valid: boolean; reason?: string } {
+    const itemDef = ITEM_DATABASE[invItem.itemId];
+    if (!itemDef || !itemDef.useEffect) {
+      return { valid: false, reason: 'This item cannot be used' };
+    }
+
+    const now = Date.now();
+    
+    // Check cooldowns for consumables
+    if (itemDef.type === 'consumable') {
+      const cooldownCheck = player.canUseConsumable(invItem.itemId, now);
+      if (!cooldownCheck.canUse) {
+        return { valid: false, reason: cooldownCheck.reason || 'Item on cooldown' };
+      }
+    }
+
+    return { valid: true };
+  }
+
+  private sendItemUseConfirmation(player: Player, invItem: any, effect: any): void {
+    const now = Date.now();
+    
     // Send confirmation
-    this.network.sendToPlayer(sessionId, {
+    this.network.sendToPlayer(player.id, {
       type: ServerMessageType.ConsumableUsed,
       playerId: player.id,
       itemId: invItem.itemId,
@@ -576,14 +606,10 @@ export class MessageHandler {
     });
 
     // Send cooldown update
-    this.network.sendToPlayer(sessionId, {
+    this.network.sendToPlayer(player.id, {
       type: ServerMessageType.PotionCooldownUpdate,
       cooldownState: player.getPotionCooldownState(now),
     });
-
-    // Consume one from stack
-    player.removeFromInventory(msg.slot, 1);
-    this.sendInventoryUpdate(sessionId, player);
   }
 
   private handleEquipItem(sessionId: string, msg: EquipItemMessage): void {
@@ -762,27 +788,13 @@ export class MessageHandler {
     }
 
     // Notify old zone that player left
-    const oldZonePlayers = this.world.zoneManager.getPlayersInZone(oldZone);
-    for (const otherPlayer of oldZonePlayers) {
-      if (otherPlayer.id !== player.id) {
-        this.network.sendToPlayer(otherPlayer.id, {
-          type: ServerMessageType.PlayerLeft,
-          playerId: player.id,
-        });
-      }
-    }
+    this.notifyZonePlayersPlayerLeft(oldZone, player.id);
 
     // Change zone
     this.world.changePlayerZone(player, newZone, newPosition);
 
     // Persist zone change to DB immediately
-    try {
-      if (player.characterId) {
-        this.db.saveCharacter(player.toCharacterSaveData());
-      }
-    } catch (error) {
-      console.error(`[Portal] Failed to persist zone change for ${player.name}:`, error);
-    }
+    this.persistZoneChange(player);
 
     // Send zone changed message to player
     this.network.sendToPlayer(sessionId, {
@@ -794,15 +806,7 @@ export class MessageHandler {
     });
 
     // Notify new zone that player joined
-    const newZonePlayers = this.world.zoneManager.getPlayersInZone(newZone);
-    for (const otherPlayer of newZonePlayers) {
-      if (otherPlayer.id !== player.id) {
-        this.network.sendToPlayer(otherPlayer.id, {
-          type: ServerMessageType.PlayerJoined,
-          player: player.toState(),
-        });
-      }
-    }
+    this.notifyZonePlayersPlayerJoined(newZone, player);
 
     console.log(`[Portal] ${player.name} traveled from ${oldZone} to ${newZone}`);
 
@@ -811,6 +815,40 @@ export class MessageHandler {
 
     // Trigger Visit quest objectives for new zone
     this.questManager.onZoneEnter(player, newZone);
+  }
+
+  private notifyZonePlayersPlayerLeft(zoneId: ZoneId, playerId: string): void {
+    const zonePlayers = this.world.zoneManager.getPlayersInZone(zoneId);
+    for (const otherPlayer of zonePlayers) {
+      if (otherPlayer.id !== playerId) {
+        this.network.sendToPlayer(otherPlayer.id, {
+          type: ServerMessageType.PlayerLeft,
+          playerId,
+        });
+      }
+    }
+  }
+
+  private notifyZonePlayersPlayerJoined(zoneId: ZoneId, player: Player): void {
+    const zonePlayers = this.world.zoneManager.getPlayersInZone(zoneId);
+    for (const otherPlayer of zonePlayers) {
+      if (otherPlayer.id !== player.id) {
+        this.network.sendToPlayer(otherPlayer.id, {
+          type: ServerMessageType.PlayerJoined,
+          player: player.toState(),
+        });
+      }
+    }
+  }
+
+  private persistZoneChange(player: Player): void {
+    try {
+      if (player.characterId) {
+        this.db.saveCharacter(player.toCharacterSaveData());
+      }
+    } catch (error) {
+      console.error(`[Portal] Failed to persist zone change for ${player.name}:`, error);
+    }
   }
 
   // ── NPC & Quest handlers ─────────────────────────────────
@@ -839,8 +877,8 @@ export class MessageHandler {
     const availableQuests = npc.getAvailableQuests(player, playerQuests);
 
     // Build active quests for this NPC
-    const activeQuests: Array<{ questId: typeof QUEST_DEFINITIONS[keyof typeof QUEST_DEFINITIONS]['id']; objectives: typeof QUEST_DEFINITIONS[keyof typeof QUEST_DEFINITIONS]['objectives'] }> = [];
-    const completableQuests: Array<typeof QUEST_DEFINITIONS[keyof typeof QUEST_DEFINITIONS]['id']> = [];
+    const activeQuests: Array<{ questId: QuestId; objectives: QuestObjective[] }> = [];
+    const completableQuests: QuestId[] = [];
 
     for (const questId of npc.def.questIds) {
       const entry = playerQuests.get(questId);
@@ -913,7 +951,7 @@ export class MessageHandler {
   }
 
   private sendNpcList(sessionId: string, player: Player): void {
-    const npcList = this.questManager.getNpcListForZone(player.id, player.currentZone);
+    const npcList = this.questManager.getNpcListForZone(player, player.currentZone);
     this.network.sendToPlayer(sessionId, {
       type: ServerMessageType.NPCList,
       npcs: npcList,

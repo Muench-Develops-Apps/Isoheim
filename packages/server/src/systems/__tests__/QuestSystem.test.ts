@@ -803,7 +803,7 @@ describe('QuestSystem', () => {
   describe('NPC Quest List for Zone', () => {
     it('should return NPCs in correct zone', () => {
       player.level = 1;
-      const npcList = questManager.getNpcListForZone(player.id, ZoneId.StarterPlains);
+      const npcList = questManager.getNpcListForZone(player, ZoneId.StarterPlains);
       
       expect(npcList.length).toBeGreaterThan(0);
       // Guard Captain and Merchant should be in starter plains
@@ -816,7 +816,7 @@ describe('QuestSystem', () => {
 
     it('should mark hasQuest true for NPCs with available quests', () => {
       player.level = 1;
-      const npcList = questManager.getNpcListForZone(player.id, ZoneId.StarterPlains);
+      const npcList = questManager.getNpcListForZone(player, ZoneId.StarterPlains);
       
       const guardCaptain = npcList.find(n => n.id === 'guard-captain');
       expect(guardCaptain!.hasQuest).toBe(true); // SlayGoblins is available
@@ -830,7 +830,7 @@ describe('QuestSystem', () => {
         questManager.onMobKill(player, 'goblin');
       }
       
-      const npcList = questManager.getNpcListForZone(player.id, ZoneId.StarterPlains);
+      const npcList = questManager.getNpcListForZone(player, ZoneId.StarterPlains);
       const guardCaptain = npcList.find(n => n.id === 'guard-captain');
       
       expect(guardCaptain!.questReady).toBe(true);
@@ -838,7 +838,7 @@ describe('QuestSystem', () => {
 
     it('should not mark hasQuest for NPC if level too low', () => {
       player.level = 1;
-      const npcList = questManager.getNpcListForZone(player.id, ZoneId.DarkForest);
+      const npcList = questManager.getNpcListForZone(player, ZoneId.DarkForest);
       
       const ranger = npcList.find(n => n.id === 'ranger');
       // Ranger has HuntWolves (level 3), should not show hasQuest for level 1
@@ -847,7 +847,7 @@ describe('QuestSystem', () => {
 
     it('should not mark hasQuest if prerequisite not met', () => {
       player.level = 2;
-      const npcList = questManager.getNpcListForZone(player.id, ZoneId.StarterPlains);
+      const npcList = questManager.getNpcListForZone(player, ZoneId.StarterPlains);
       
       const guardCaptain = npcList.find(n => n.id === 'guard-captain');
       // HelpTheGuard requires SlayGoblins, so shouldn't show yet
