@@ -67,3 +67,24 @@
 - **Leah's client deliverables:** Paper-doll CharacterPanel (7 slots, 3x4 grid), right-click equip/unequip, stat comparison tooltips, equipment bonus display in stats
 - **Key integration:** Message exports (EquipItemMessage, UnequipItemMessage, EquipmentUpdateMessage) needed to be added to shared/index.ts by Leah for client consistency
 
+## Kormac Review Fixes — Client Cross-Domain (2026-03-21)
+- **Branch:** squad/5-potions-consumables
+- **Context:** Kormac rejected PR #20; Reviewer Rejection Lockout locked Leah out. Tyrael picked up 4 client-side fixes.
+- **DRY #7:** Created `packages/client/src/ui/formatItemStats.ts` — shared helper `formatItemStats(stats)` replaces duplicated stat text building in both CharacterPanel.showEquipTooltip() and InventoryPanel.showTooltip()
+- **#11 Naming:** Renamed `sep` → `separator` in CharacterPanel.addSeparator()
+- **#12 Dead code:** Removed unused `color` variable in InventoryPanel.buildComparisonText()
+- **#13 Dead code:** Removed unused `STAT_NEUTRAL_COLOR` constant from InventoryPanel
+- **Build verified:** All three packages (shared, server, client) compile clean
+- **Pattern learned:** Cross-domain assignments work fine for surgical fixes; the formatItemStats helper follows the same pattern as existing shared UI utilities
+
+## Wave B Completion & Merge (2026-03-21T17:40:00Z)
+- **Kormac Re-Review:** All 13 issues verified fixed across both Tyrael and Leah fixes, APPROVED ✅
+- **PR #20 Merge Timeline:**
+  - Re-review approval: 2026-03-21T17:40:00Z
+  - Squash merge to main: 2026-03-21T17:41:00Z
+  - Branch deleted: squad/5-potions-consumables
+  - Issues closed: #5 (Potions), #6 (Equipment)
+- **Wave B Status:** SHIPPED to production
+- **Dev Servers:** Client localhost:3000 (Vite), Server localhost:8080 (WebSocket), game.db persisted
+- **Next Phase:** User testing, Wave C planning
+- **Key Achievement:** Successful cross-domain integration with lockout-swap review pattern validating all critical paths (message dispatch, persistence, type-safety, clean code)
