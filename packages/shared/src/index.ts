@@ -189,4 +189,5 @@ export {
   vectorToDirection,
   lerp,
   generateId,
+  createDefaultEquipmentMap,
 } from './utils.js';

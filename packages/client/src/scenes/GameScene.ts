@@ -475,10 +475,10 @@ export class GameScene extends Phaser.Scene {
       this.handleZoneChange(msg);
     });
 
-    this.net.on(ServerMessageType.ConsumableUsed, (msg: { playerId: string; itemId: string; effectType: string; value: number }) => {
+    this.net.on(ServerMessageType.ConsumableUsed, (msg: { playerId: string; itemId: string; effectType: 'heal' | 'mana' | 'teleport' | 'buff'; value: number }) => {
       const player = this.players.get(msg.playerId);
       if (player) {
-        VFXManager.instance.playConsumableEffect(msg.effectType as any, player.sprite.x, player.sprite.y);
+        VFXManager.instance.playConsumableEffect(msg.effectType, player.sprite.x, player.sprite.y);
       }
     });
 

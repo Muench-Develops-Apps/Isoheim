@@ -8,6 +8,8 @@ import {
   DropItemMessage,
   MoveItemMessage,
   UseItemMessage,
+  EquipItemMessage,
+  UnequipItemMessage,
   ZoneId,
   ITEM_DATABASE,
   LOOT_PICKUP_RANGE,
@@ -160,6 +162,14 @@ export class MessageHandler {
         this.handleUseItem(sessionId, message as UseItemMessage);
         break;
 
+      case ClientMessageType.EquipItem:
+        this.handleEquipItem(sessionId, message as EquipItemMessage);
+        break;
+
+      case ClientMessageType.UnequipItem:
+        this.handleUnequipItem(sessionId, message as UnequipItemMessage);
+        break;
+
       case ClientMessageType.UsePortal:
         this.handleUsePortal(sessionId, message.targetZone);
         break;
@@ -253,6 +263,12 @@ export class MessageHandler {
 
     const player = Player.fromCharacterInfo(sessionId, charInfo);
     player.inventory = this.db.loadInventory(charInfo.id);
+    const savedEquipment = this.db.loadEquipment(charInfo.id);
+    if (savedEquipment) {
+      for (const [slot, itemId] of savedEquipment.entries()) {
+        player.equipment.set(slot, itemId);
+      }
+    }
     this.sessions.set(sessionId, player.id);
     this.world.addPlayer(player);
 
@@ -492,28 +508,11 @@ export class MessageHandler {
 
     // Apply effect based on type
     if (effect.type === 'heal') {
-      const healAmount = Math.round((effect.value / 100) * player.maxHealth);
-      const event = player.heal(healAmount, player.id);
-      this.network.broadcastToZone(player.currentZone, {
-        type: ServerMessageType.DamageDealt,
-        event,
-      });
-      player.startPotionCooldown(now, POTION_SHARED_COOLDOWN_MS);
+      this.applyHealConsumable(player, now, effect.value);
     } else if (effect.type === 'mana') {
-      const manaAmount = Math.round((effect.value / 100) * player.maxMana);
-      player.mana = Math.min(player.maxMana, player.mana + manaAmount);
-      player.startPotionCooldown(now, POTION_SHARED_COOLDOWN_MS);
+      this.applyManaConsumable(player, now, effect.value);
     } else if (effect.type === 'teleport') {
-      const spawn = ZONE_PLAYER_SPAWNS[player.currentZone];
-      player.position.x = spawn.x;
-      player.position.y = spawn.y;
-      player.setItemCooldown(invItem.itemId, now, TP_SCROLL_COOLDOWN_MS);
-      this.network.broadcastToZone(player.currentZone, {
-        type: ServerMessageType.PlayerMoved,
-        playerId: player.id,
-        position: player.position,
-        seq: 0,
-      });
+      this.applyTeleportConsumable(player, invItem.itemId, now);
     } else if (effect.type === 'buff') {
       this.applyBandageHoT(player, now);
       player.setItemCooldown(invItem.itemId, now, BANDAGE_COOLDOWN_MS);
@@ -539,6 +538,63 @@ export class MessageHandler {
     this.sendInventoryUpdate(sessionId, player);
   }
 
+  private handleEquipItem(sessionId: string, msg: EquipItemMessage): void {
+    const player = this.world.getPlayer(sessionId);
+    if (!player || player.isDead) return;
+
+    const success = player.equipItem(msg.slot, msg.equipSlot);
+    if (success) {
+      this.sendInventoryUpdate(sessionId, player);
+      this.network.sendToPlayer(sessionId, {
+        type: ServerMessageType.EquipmentUpdate,
+        equipment: player.getEquipmentState(),
+      });
+    }
+  }
+
+  private handleUnequipItem(sessionId: string, msg: UnequipItemMessage): void {
+    const player = this.world.getPlayer(sessionId);
+    if (!player || player.isDead) return;
+
+    const success = player.unequipItem(msg.equipSlot);
+    if (success) {
+      this.sendInventoryUpdate(sessionId, player);
+      this.network.sendToPlayer(sessionId, {
+        type: ServerMessageType.EquipmentUpdate,
+        equipment: player.getEquipmentState(),
+      });
+    }
+  }
+
+  private applyHealConsumable(player: Player, now: number, value: number): void {
+    const healAmount = Math.round((value / 100) * player.maxHealth);
+    const event = player.heal(healAmount, player.id);
+    this.network.broadcastToZone(player.currentZone, {
+      type: ServerMessageType.DamageDealt,
+      event,
+    });
+    player.startPotionCooldown(now, POTION_SHARED_COOLDOWN_MS);
+  }
+
+  private applyManaConsumable(player: Player, now: number, value: number): void {
+    const manaAmount = Math.round((value / 100) * player.maxMana);
+    player.mana = Math.min(player.maxMana, player.mana + manaAmount);
+    player.startPotionCooldown(now, POTION_SHARED_COOLDOWN_MS);
+  }
+
+  private applyTeleportConsumable(player: Player, itemId: string, now: number): void {
+    const spawn = ZONE_PLAYER_SPAWNS[player.currentZone];
+    player.position.x = spawn.x;
+    player.position.y = spawn.y;
+    player.setItemCooldown(itemId, now, TP_SCROLL_COOLDOWN_MS);
+    this.network.broadcastToZone(player.currentZone, {
+      type: ServerMessageType.PlayerMoved,
+      playerId: player.id,
+      position: player.position,
+      seq: 0,
+    });
+  }
+
   private applyBandageHoT(player: Player, now: number): void {
     const ticksCount = Math.floor(BANDAGE_HOT_DURATION_MS / TICK_INTERVAL);
     const totalHeal = Math.round((BANDAGE_HOT_TOTAL_PERCENT / 100) * player.maxHealth);
@@ -549,7 +605,7 @@ export class MessageHandler {
     player.bandageHoTTicksRemaining = ticksCount;
 
     // Store heal per tick in a simple way
-    (player as any).bandageHealPerTick = healPerTick;
+    player.bandageHealPerTick = healPerTick;
   }
 
   private sendInventoryUpdate(sessionId: string, player: Player): void {
@@ -568,6 +624,7 @@ export class MessageHandler {
       try {
         this.db.saveCharacter(player.toCharacterSaveData());
         this.db.saveInventory(player.characterId, player.inventory);
+        this.db.saveEquipment(player.characterId, player.equipment);
       } catch (error) {
         console.error(`[Game] Failed to save player ${player.name} on disconnect:`, error);
       }
@@ -600,6 +657,7 @@ export class MessageHandler {
         try {
           this.db.saveCharacter(player.toCharacterSaveData());
           this.db.saveInventory(player.characterId, player.inventory);
+          this.db.saveEquipment(player.characterId, player.equipment);
         } catch (error) {
           console.error(`[Game] Failed to save player ${player.name}:`, error);
         }

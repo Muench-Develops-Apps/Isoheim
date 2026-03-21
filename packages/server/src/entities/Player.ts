@@ -29,6 +29,7 @@ import {
   ZONE_PLAYER_SPAWNS,
   EQUIPMENT_SLOT_FOR_ITEM_TYPE,
   xpForLevel,
+  createDefaultEquipmentMap,
 } from '@isoheim/shared';
 import type { BuffSystem } from '../systems/BuffSystem.js';
 
@@ -70,20 +71,13 @@ export class Player {
   bandageHoTActive: boolean = false;
   bandageHoTEndTime: number = 0;
   bandageHoTTicksRemaining: number = 0;
+  bandageHealPerTick: number = 0;
 
   // Inventory
   inventory: InventoryItem[] = [];
 
   // Equipment
-  equipment: Map<EquipmentSlot, string | null> = new Map([
-    [EquipmentSlot.Weapon, null],
-    [EquipmentSlot.Head, null],
-    [EquipmentSlot.Chest, null],
-    [EquipmentSlot.Legs, null],
-    [EquipmentSlot.Boots, null],
-    [EquipmentSlot.Ring1, null],
-    [EquipmentSlot.Ring2, null],
-  ]);
+  equipment: Map<EquipmentSlot, string | null> = createDefaultEquipmentMap();
 
   // Zone
   currentZone: ZoneId = ZoneId.StarterPlains;

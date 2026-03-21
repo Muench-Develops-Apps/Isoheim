@@ -1,5 +1,5 @@
 import BetterSqlite3 from 'better-sqlite3';
-import { InventoryItem, generateId, EquipmentSlot } from '@isoheim/shared';
+import { InventoryItem, generateId, EquipmentSlot, createDefaultEquipmentMap } from '@isoheim/shared';
 
 export interface CharacterRow {
   id: string;
@@ -234,15 +234,7 @@ export class Database {
       .prepare('SELECT slot, item_id FROM equipment WHERE character_id = ?')
       .all(characterId) as { slot: string; item_id: string }[];
     
-    const equipment = new Map<EquipmentSlot, string | null>([
-      [EquipmentSlot.Weapon, null],
-      [EquipmentSlot.Head, null],
-      [EquipmentSlot.Chest, null],
-      [EquipmentSlot.Legs, null],
-      [EquipmentSlot.Boots, null],
-      [EquipmentSlot.Ring1, null],
-      [EquipmentSlot.Ring2, null],
-    ]);
+    const equipment = createDefaultEquipmentMap();
 
     for (const row of rows) {
       equipment.set(row.slot as EquipmentSlot, row.item_id);

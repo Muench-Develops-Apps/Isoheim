@@ -164,7 +164,7 @@ export class GameLoop {
             player.bandageHoTActive = false;
             player.bandageHoTTicksRemaining = 0;
           } else {
-            const healAmount = (player as any).bandageHealPerTick || 0;
+            const healAmount = player.bandageHealPerTick || 0;
             if (healAmount > 0) {
               const event = player.heal(healAmount, player.id);
               this.network.broadcastToZone(player.currentZone, {
