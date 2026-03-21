@@ -88,3 +88,41 @@
 - **Dev Servers:** Client localhost:3000 (Vite), Server localhost:8080 (WebSocket), game.db persisted
 - **Next Phase:** User testing, Wave C planning
 - **Key Achievement:** Successful cross-domain integration with lockout-swap review pattern validating all critical paths (message dispatch, persistence, type-safety, clean code)
+
+## NPC & Quest System Implementation (Wave C)
+- **Branch:** squad/7-npcs-quest-system
+- **Issue:** #7 — NPCs & Quest System
+
+### Inventory Persistence Bug Investigation
+- Investigated disconnect handler, saveAndRemovePlayer, auto-save, and DB layer
+- **No critical bug found**: WebSocket 'close' event fires for both clean and abnormal disconnects → triggers handleDisconnect → saveAndRemovePlayer correctly
+- Auto-save runs every 60s via setInterval, graceful shutdown (SIGINT/SIGTERM) calls saveAllPlayers
+- Save operations (character, inventory, equipment) individually use transactions, are synchronous, and throw on error
+- Most likely explanation: server crash (SIGKILL bypasses save), or client-side rendering issue (Leah's domain)
+- Error-swallowing try-catch in save path is a minor concern but wouldn't cause total loss
+
+### Shared Types (Task 2)
+- **NPC types:** NpcId enum (6 NPCs), NpcDef interface with zone, position, dialogue, questIds
+- **Quest types:** QuestId enum (13 quests across 3 zones), QuestObjectiveType, QuestState, QuestObjective, QuestReward, QuestDef
+- **Protocol:** 4 client messages (InteractNPC, AcceptQuest, AbandonQuest, TurnInQuest), 4 server messages (NPCDialogue, QuestUpdate, QuestCompleted, NPCList)
+- **Constants:** NPC_DEFINITIONS (6 NPCs), QUEST_DEFINITIONS (13 quests), NPC_INTERACTION_RANGE (3.0 tiles)
+- **Quest progression:** StarterPlains L1-3 → DarkForest L3-6 → AncientDungeon L5-10
+- **Quest items used:** goblin_ear, wolf_pelt, skeleton_bone (already in ITEM_DATABASE)
+
+### Server Implementation (Task 3)
+- **Npc entity:** Stationary NPC with getAvailableQuests() filtering by level, prerequisites, current state
+- **QuestManager:** Per-player quest tracking, accept/abandon/turnIn with validation, progress hooks (onMobKill, onItemPickup, onZoneEnter)
+- **Quest rewards:** XP via addXp(), gold via new addGold(), items via addToInventory()
+- **Collect quest turnIn:** Removes collected quest items from inventory on turn-in
+- **Database:** quest_progress table (character_id, quest_id, state, objectives_json), gold column on characters table
+- **Persistence:** Quest progress saved in saveAndRemovePlayer and saveAllPlayers alongside inventory/equipment
+- **CombatSystem wiring:** setQuestManager() pattern (matches setLootSystem), onMobKill called on both auto-attack and ability kills
+- **Zone change:** Sends NPCList for new zone, triggers Visit quest objectives
+- **Pre-existing test fix:** EquipmentSystem.test.ts had readonly classType assignments — fixed with separate Player instances
+
+### Key Patterns
+- NPC/Quest constants follow MOB_DEFINITIONS/ITEM_DATABASE pattern
+- QuestManager uses the same setter-injection as LootSystem (setQuestManager on CombatSystem)
+- All message handlers are extracted methods (Kormac review compliance)
+- Quest objectives_json stored as JSON string in SQLite for flexibility
+- NPC_INTERACTION_RANGE = 3.0 as named constant (no magic numbers)
