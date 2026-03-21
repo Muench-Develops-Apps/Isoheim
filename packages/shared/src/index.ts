@@ -174,6 +174,10 @@ export {
   type LootPickedUpMessage,
   type ConsumableUsedMessage,
   type PotionCooldownUpdateMessage,
+  // Equipment
+  type EquipItemMessage,
+  type UnequipItemMessage,
+  type EquipmentUpdateMessage,
 } from './protocol.js';
 
 // Utils

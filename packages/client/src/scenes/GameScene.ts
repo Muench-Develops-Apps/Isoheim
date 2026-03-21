@@ -35,7 +35,9 @@ import {
   type LootDespawnedMessage,
   type LootPickedUpMessage,
   type ZoneChangedMessage,
+  type EquipmentUpdateMessage,
   type WorldLoot,
+  type PlayerEquipment,
 } from '@isoheim/shared';
 import { NetworkManager } from '../network/NetworkManager';
 import { InputSystem } from '../systems/InputSystem';
@@ -187,6 +189,11 @@ export class GameScene extends Phaser.Scene {
 
     // Signal game is ready for tutorial
     this.events.emit('gameReady', { tutorialComplete: msg.tutorialComplete ?? false });
+
+    // Emit initial equipment state if present in PlayerState
+    if (msg.player.equipment) {
+      this.events.emit('equipmentUpdate', msg.player.equipment);
+    }
   }
 
   private registerNetworkHandlers(): void {
@@ -477,6 +484,10 @@ export class GameScene extends Phaser.Scene {
 
     this.net.on(ServerMessageType.PotionCooldownUpdate, (msg: { cooldownState: { sharedCooldownMs: number; itemCooldowns: Record<string, number> } }) => {
       this.events.emit('potionCooldownUpdate', msg.cooldownState);
+    });
+
+    this.net.on(ServerMessageType.EquipmentUpdate, (msg: EquipmentUpdateMessage) => {
+      this.events.emit('equipmentUpdate', msg.equipment);
     });
   }
 
