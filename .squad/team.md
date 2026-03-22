@@ -26,5 +26,5 @@
 - **Project:** 2wowD
 - **User:** muench-develops
 - **Stack:** TypeScript, Phaser.js (client), Node.js + WebSocket (server), SQLite, npm workspaces
-- **Repo:** muench-develops/2wowD (GitHub, public — to be created)
+- **Repo:** Muench-Develops-Apps/Isoheim (GitHub)
 - **Created:** 2026-03-16

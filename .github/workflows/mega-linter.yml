@@ -14,7 +14,7 @@ permissions:
 jobs:
   typecheck:
     name: TypeScript Type Check
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -36,7 +36,7 @@ jobs:
 
   megalinter:
     name: MegaLinter
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
